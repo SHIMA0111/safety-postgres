@@ -1,12 +1,11 @@
-use std::borrow::Cow;
 use crate::postgres::errors::*;
 use crate::postgres::validators::validate_string;
 
 #[derive(Clone)]
-enum SqlType {
+pub(crate) enum SqlType {
     Select(QueryColumns),
     Update(UpdateSets),
-    Insert(InsertValues),
+    Insert(InsertRecords),
     Delete,
 }
 
@@ -15,49 +14,42 @@ trait SqlBuilder {
 }
 
 #[derive(Clone)]
-pub struct QueryColumns {
+pub(crate) struct QueryColumns {
     all_columns: bool,
     columns: Vec<QueryColumn>,
 }
 
 #[derive(Clone)]
 struct QueryColumn {
-    schema_name: Option<String>,
-    table_name: Option<String>,
+    schema_name: String,
+    table_name: String,
     column: Vec<String>,
 }
 
 impl QueryColumns {
-    fn new(all_columns: bool) -> Self {
+    pub(crate) fn new(all_columns: bool) -> Self {
         Self {
             all_columns,
             columns: Vec::new(),
         }
     }
 
-    fn add_column(&mut self, schema_name: Option<Cow<'_, str>>, table_name: Option<Cow<'_, str>>, column: &[&str]) -> Result<&mut Self, QueryColumnError> {
+    pub(crate) fn add_column(&mut self, schema_name: &str, table_name: &str, column: &[&str]) -> Result<&mut Self, QueryColumnError> {
         if self.all_columns {
             return Err(QueryColumnError::InputInconsistentError("'all_columns' flag is true so all columns will queried so you can't set column. Please check your input.".to_string()));
         }
 
-        if let Some(schema) = schema_name.as_deref() {
-            validate_string(schema, "schema_name", &QueryColumnErrorGenerator)?;
-        }
-        if let Some(table) = table_name.as_deref() {
-            validate_string(table, "table_name", &QueryColumnErrorGenerator)?;
-        }
+        validate_string(schema_name, "schema_name", &QueryColumnErrorGenerator)?;
+        validate_string(table_name, "table_name", &QueryColumnErrorGenerator)?;
         let column_vec = column.iter()
             .map(|column_name| {
                 validate_string(column_name, "column", &QueryColumnErrorGenerator)
                     .map(|_| column_name.to_string())
             }).collect::<Result<Vec<String>, QueryColumnError>>()?;
 
-        let schema_name = schema_name.map(Cow::into_owned);
-        let table_name = table_name.map(Cow::into_owned);
-
         let query_column = QueryColumn {
-            schema_name,
-            table_name,
+            schema_name: schema_name.to_string(),
+            table_name: table_name.to_string(),
             column: column_vec,
         };
 
@@ -78,11 +70,11 @@ impl SqlBuilder for QueryColumns {
             for query_column in &self.columns {
                 let mut column_condition: Vec<String> = Vec::new();
                 for column_name in &query_column.column {
-                    if let Some(schema) = &query_column.schema_name {
-                        column_condition.push(schema.to_string());
+                    if !query_column.schema_name.is_empty() {
+                        column_condition.push(query_column.schema_name.to_string());
                     }
-                    if let Some(table) = &query_column.table_name {
-                        column_condition.push(table.to_string());
+                    if !query_column.table_name.is_empty() {
+                        column_condition.push(query_column.table_name.to_string());
                     }
                     column_condition.push(column_name.to_string());
                     columns.push(column_condition.join("."));
@@ -96,7 +88,7 @@ impl SqlBuilder for QueryColumns {
 }
 
 #[derive(Clone)]
-struct UpdateSets {
+pub(crate) struct UpdateSets {
     update_sets: Vec<UpdateSet>
 }
 
@@ -107,13 +99,13 @@ struct UpdateSet {
 }
 
 impl UpdateSets {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             update_sets: Vec::new(),
         }
     }
 
-    fn add_set(&mut self, column: &str, value: &str) -> Result<&mut Self, UpdateSetError> {
+    pub(crate) fn add_set(&mut self, column: &str, value: &str) -> Result<&mut Self, UpdateSetError> {
         validate_string(column, "column", &UpdateSetErrorGenerator)?;
 
         let update_set = UpdateSet {
@@ -123,6 +115,10 @@ impl UpdateSets {
         self.update_sets.push(update_set);
 
         Ok(self)
+    }
+
+    pub(crate) fn get_num_values(&self) -> usize {
+        self.update_sets.len()
     }
 }
 
@@ -144,69 +140,65 @@ impl SqlBuilder for UpdateSets {
 }
 
 #[derive(Clone)]
-struct InsertValue {
-    column: String,
+struct InsertRecord {
     values: Vec<String>,
 }
 
 #[derive(Clone)]
-struct InsertValues {
-    insert_values: Vec<InsertValue>,
-    records: u32,
+pub(crate) struct InsertRecords {
+    keys: Vec<String>,
+    insert_records: Vec<InsertRecord>,
 }
 
 
-impl InsertValues {
-    fn new(records: u32) -> Self {
+impl InsertRecords {
+    pub(crate) fn new(columns: &[&str]) -> Self {
+        let keys = columns.iter().map(|column| column.to_string()).collect::<Vec<String>>();
+
         Self {
-            insert_values: Vec::new(),
-            records
+            keys,
+            insert_records: Vec::new()
         }
     }
 
-    fn add_value(&mut self, column: &str, values: &[&str]) -> Result<&mut Self, InsertValueError> {
-        validate_string(column, "column", &InsertValueErrorGenerator)?;
-        if self.records != (values.len() as u32) {
-            return Err(InsertValueError::InputInvalidError("'values' should have match number with the 'records' setting.".to_string()));
+    pub(crate) fn add_value(&mut self, values: &[&str]) -> Result<&mut Self, InsertValueError> {
+        self.keys.iter().map(|key| validate_string(key.as_str(), "columns", &InsertValueErrorGenerator)).collect::<Result<_, InsertValueError>>()?;
+        if values.len() != self.keys.len() {
+            return Err(InsertValueError::InputInconsistentError("'values' should match with the 'columns' number. Please input data.".to_string()));
         }
 
-        let insert_value = InsertValue {
-            column: column.to_string(),
+        let insert_record = InsertRecord {
             values: values.iter().map(|value| value.to_string()).collect(),
         };
 
-        self.insert_values.push(insert_value);
+        self.insert_records.push(insert_record);
 
         Ok(self)
     }
 }
 
-impl SqlBuilder for InsertValues {
+impl SqlBuilder for InsertRecords {
     fn build_sql(&self, table_name: &str) -> String {
         let mut sql_vec: Vec<String> = Vec::new();
 
         sql_vec.extend(vec!["INSERT INTO".to_string(), table_name.to_string()]);
-        let mut columns_vec: Vec<String> = Vec::new();
-        let number_elements = self.records * (self.insert_values.len() as u32);
-        for insert_value in &self.insert_values {
-            columns_vec.push(insert_value.column.to_string());
-        }
+        let number_elements = self.keys.len() * self.insert_records.len();
         let mut values_placeholder_vec: Vec<String> = Vec::new();
         for placeholder_index in 1..=number_elements {
-            match placeholder_index % self.records {
+            match placeholder_index % self.keys.len() {
                 0 => values_placeholder_vec.push(format!("${})", placeholder_index)),
                 1 => values_placeholder_vec.push(format!("(${}", placeholder_index)),
                 _ => values_placeholder_vec.push(format!("${}", placeholder_index))
             }
         }
-        sql_vec.push(format!("({}) VALUES ({})", columns_vec.join(", "), values_placeholder_vec.join(", ")));
+        sql_vec.push(format!("({}) VALUES {}", self.keys.join(", "), values_placeholder_vec.join(", ")));
         sql_vec.join(" ")
     }
 
 }
 
 impl SqlType {
-    fn sql_build(&self, table_name: &str) -> String {
+    pub(super) fn sql_build(&self, table_name: &str) -> String {
         match self {
             SqlType::Select(query_columns) => query_columns.build_sql(table_name),
             SqlType::Insert(insert_values) => insert_values.build_sql(table_name),

@@ -1,6 +1,6 @@
 use std::fmt;
 use std::error::Error;
-use std::fmt::{Debug, Formatter, write};
+use std::fmt::{Debug, Formatter};
 
 
 pub(super) trait ErrorGenerator<E> {
@@ -8,7 +8,7 @@ pub(super) trait ErrorGenerator<E> {
 }
 
 #[derive(Debug)]
-pub(super) enum StatementError {
+pub(crate) enum StatementError {
     GenerationError(String),
     InputError(String),
 }
@@ -25,7 +25,7 @@ impl fmt::Display for StatementError {
 impl Error for StatementError {}
 
 #[derive(Debug)]
-pub(super) enum JoinTableError {
+pub(crate) enum JoinTableError {
     InputInconsistentError(String),
     InputInvalidError(String),
 }
@@ -50,7 +50,7 @@ impl ErrorGenerator<JoinTableError> for JoinTableErrorGenerator {
 }
 
 #[derive(Debug)]
-pub(super) enum ConditionError {
+pub(crate) enum ConditionError {
     InputInvalidError(String),
 }
 
@@ -73,7 +73,7 @@ impl ErrorGenerator<ConditionError> for ConditionErrorGenerator {
 }
 
 #[derive(Debug)]
-pub(super) enum QueryColumnError {
+pub(crate) enum QueryColumnError {
     InputInvalidError(String),
     InputInconsistentError(String),
 }
@@ -98,7 +98,7 @@ impl ErrorGenerator<QueryColumnError> for QueryColumnErrorGenerator {
 }
 
 #[derive(Debug)]
-pub(super) enum UpdateSetError {
+pub(crate) enum UpdateSetError {
     InputInvalidError(String),
 }
 
@@ -120,7 +120,7 @@ impl ErrorGenerator<UpdateSetError> for UpdateSetErrorGenerator {
 }
 
 #[derive(Debug)]
-pub(super) enum InsertValueError {
+pub(crate) enum InsertValueError {
     InputInvalidError(String),
     InputInconsistentError(String),
 }

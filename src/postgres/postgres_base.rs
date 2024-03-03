@@ -3,9 +3,12 @@ use tokio_postgres::{NoTls, Error as PGError, row::Row, Client, Statement};
 use tokio_postgres::types::ToSql;
 use chrono::NaiveDate;
 use crate::postgres::app_config::AppConfig;
+use crate::postgres::conditions::{ComparisonOperator, Conditions, IsJoin, LogicalOperator};
+use crate::postgres::join_tables::JoinTables;
+use crate::postgres::sqls::{InsertRecords, QueryColumns, SqlType, UpdateSets};
 use crate::postgres::validators::{parameter_validator, validate_alphanumeric_name};
 
-pub(super) struct PostgresBase {
+pub(crate) struct PostgresBase {
     username: String,
     password: String,
     hostname: String,
@@ -21,23 +24,6 @@ enum Param {
     Int(i32),
     Float(f32),
     Date(NaiveDate),
-}
-
-pub(crate) enum ConditionOperator {
-    And,
-    Or,
-    Parameter,
-}
-
-pub(crate) struct JoinTable {
-    schema: String,
-    table_name: String,
-    key_column: Vec<String>,
-    destination_column: Vec<String>,
-}
-
-pub(crate) struct JoinTables {
-    tables: Vec<JoinTable>,
 }
 
 impl PostgresBase {
@@ -104,154 +90,75 @@ impl PostgresBase {
         Ok(())
     }
 
-    pub(crate) async fn query_raw(&self, query_column: &[&str]) -> Result<Vec<Row>, Box<dyn std::error::Error>> {
-        if !query_column.is_empty() && !query_column.iter().all(|str| validate_alphanumeric_name(str, "_")) {
-            return Err("Invalid column name inputted. Please check the input again.".into());
-        }
-
-        self.query_condition_raw(query_column, &[], &[], ConditionOperator::And).await
+    pub(crate) async fn query_raw(&self, query_columns: QueryColumns) -> Result<(), Box<dyn std::error::Error>> {
+        self.query_inner_join_conditions(query_columns, JoinTables::new(), Conditions::new(IsJoin::False)).await
     }
 
-    pub(crate) async fn query_condition_raw(&self, query_column: &[&str], condition_key: &[&str], condition_values: &[&str], condition_operator: ConditionOperator) -> Result<Vec<Row>, Box<dyn std::error::Error>> {
-        if let Err(e) = parameter_validator(condition_key, condition_values) {
-            return Err(e.into());
-        }
-        let query_param: String;
-        if query_column.is_empty() {
-            query_param = "*".to_string();
-        }
-        else {
-            query_param = query_column.join(", ");
-        }
-
-        let statement: String;
-        if condition_key.is_empty() {
-            statement = format!("SELECT {} FROM {}", query_param, self.table_name);
-        }
-        else {
-            let condition_key_str = Self::statement_parameter_builder(condition_key, 0, condition_operator);
-            statement = format!("SELECT {} FROM {} WHERE {}", query_param, self.table_name, condition_key_str);
-        }
-        Ok(self.query_row_sql(statement.as_str(), condition_values).await?)
+    pub(crate) async fn query_condition_raw(&self, query_column: QueryColumns, conditions: Conditions) -> Result<(), Box<dyn std::error::Error>> {
+        self.query_inner_join_conditions(query_column, JoinTables::new(), conditions).await
     }
 
-    async fn query_inner_join_conditions(&self, join_tables: JoinTables, condition_keys: &[&str], condition_values: &[&str], condition_operator: ConditionOperator) -> Result<Vec<Row>, Box<dyn std::error::Error>> {
-        if join_tables.tables.is_empty() {
-            return Err("'join_tables' doesn't have any joined tables if you want to query from only one table, please use 'query_condition_raw' method.".into());
-        }
-        return unimplemented!()
+    pub(crate) async fn query_inner_join_conditions(&self, query_columns: QueryColumns, join_tables: JoinTables, conditions: Conditions) -> Result<(), Box<dyn std::error::Error>> {
+        let query_statement: String = SqlType::Select(query_columns).sql_build(self.table_name.as_str());
+        let mut statement_vec: Vec<String> = vec![query_statement];
 
+        if !join_tables.is_tables_empty() {
+            let join_statement = join_tables.generate_statement_text(self.table_name.as_str())?;
+            statement_vec.push(join_statement);
+        }
+        if !conditions.is_empty() {
+            let condition_statement = conditions.generate_statement_text(0)?;
+            statement_vec.push(condition_statement);
+        }
+
+        let statement = statement_vec.join(" ");
+        println!("{}", statement);
+
+        Ok(())
     }
 
-    pub(crate) async fn insert(&self, keys: &[&str], values: &Vec<Vec<&str>>) -> Result<(), Box<dyn std::error::Error>> {
-        if !keys.iter().all(|key| validate_alphanumeric_name(key, "_")) {
-            return Err("Invalid key name. Please use only alphabetic characters and underscores.".into());
-        }
-        for (index, value) in values.iter().enumerate() {
-            if keys.len() != value.len() {
-                return Err(format!("'keys' and all 'values' elements should have the same length but index {} has {} elements", index, value.len()).into())
-            }
-        }
-
-        let num_values = keys.len();
-        let mut placeholder = "".to_string();
-        for index in 1..=num_values {
-            placeholder += format!("${}", index).as_str();
-            if index == num_values {
-                placeholder += "";
-            }
-            else {
-                placeholder += ", ";
-            }
-        }
-
-        let insert_statement = format!(
-            "INSERT INTO {} ({}) VALUES ({})",
-            self.table_name,
-            keys.join(", "),
-            placeholder
-        );
-
-        let mut  error_record_index = Vec::new();
-        let mut complete_insert_num = 0;
-        for (index, value) in values.iter().enumerate() {
-            let params = Self::params_generator(value);
-            let res = match self.execute(&insert_statement, &params).await {
-                Ok(res) => res,
-                Err(e) => {
-                    error_record_index.push(index);
-                    eprintln!("Data index: {} insert failed due to {}", index, e);
-                    0
-                }
-            };
-            complete_insert_num += res;
-        }
-        if complete_insert_num == (values.len() as u64) {
-            Ok(())
-        } else {
-            let failed_indexes = error_record_index.iter().map(|n| n.to_string()).collect::<Vec<_>>().join(", ");
-            Err(format!("Input Index: {} were failed due to insert error.", failed_indexes).into())
-        }
+    pub(crate) async fn insert(&self, insert_records: InsertRecords) -> Result<(), Box<dyn std::error::Error>> {
+        let statement = SqlType::Insert(insert_records).sql_build(self.table_name.as_str());
+        println!("{}", statement);
+        Ok(())
     }
 
-    pub(crate) async fn update(&self, keys: &[&str], values: &[&str], allow_all_update: bool) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) async fn update(&self, update_set: UpdateSets, allow_all_update: bool) -> Result<(), Box<dyn std::error::Error>> {
         if allow_all_update {
-            self.update_condition(keys, values, &[], &[], ConditionOperator::And).await
+            self.update_condition(update_set, Conditions::new(IsJoin::False)).await
         }
         else {
             Err("'update' method will update all records in the specified table so please consider to use 'update_condition' instead of this.".into())
         }
     }
 
-    pub(crate) async fn update_condition(&self, keys: &[&str], values: &[&str], condition_keys: &[&str], condition_values: &[&str], condition_operator: ConditionOperator) -> Result<(), Box<dyn std::error::Error>> {
-        if let Err(e) = parameter_validator(keys, values) {
-            return Err(e.into());
-        }
-        if let Err(e) = parameter_validator(condition_keys, condition_values) {
-            return Err(e.into());
+    pub(crate) async fn update_condition(&self, update_set: UpdateSets, conditions: Conditions) -> Result<(), Box<dyn std::error::Error>> {
+        let statement_base = SqlType::Update(update_set.clone()).sql_build(self.table_name.as_str());
+        let mut statement_vec = vec![statement_base];
+        let set_num = update_set.get_num_values();
+
+        if !conditions.is_empty() {
+            let statement_condition = conditions.generate_statement_text(set_num)?;
+            statement_vec.push(statement_condition);
         }
 
-        if keys.is_empty() {
-            return Err("'update' related methods require number of keys and values at least 1.".into());
-        }
-
-        let update_statement: String = Self::statement_parameter_builder(keys, 0, ConditionOperator::Parameter);
-
-        let statement: String;
-        if condition_keys.is_empty() {
-            statement = format!("UPDATE {} SET {}", self.table_name, update_statement);
-        }
-        else {
-            let condition_statement: String = Self::statement_parameter_builder(condition_keys, keys.len(), condition_operator);
-            statement = format!("UPDATE {} SET {} WHERE {}", self.table_name, update_statement, condition_statement);
-        }
-
-        let mut params_raw: Vec<&str> = Vec::new();
-        params_raw.extend_from_slice(values);
-        params_raw.extend_from_slice(condition_values);
-
-        let params = Self::params_generator(&params_raw);
-        match self.execute(&statement, &params).await {
-            Ok(_) => Ok(()),
-            Err(e) => return Err(format!("UPDATE failed due to {}", e).into()),
-        }
+        println!("{}", statement_vec.join(" "));
+        Ok(())
     }
 
-    pub(crate) async fn delete(&self, condition_keys: &[&str], condition_values: &[&str], condition_operator: ConditionOperator) -> Result<(), Box<dyn std::error::Error>> {
-        if let Err(e) = parameter_validator(condition_keys, condition_values) {
-            return Err(e.into());
-        };
-        if condition_keys.is_empty() {
-            return Err("'delete' method can't execute without conditions. Please check your input.".into());
-        };
-        let condition_statement = Self::statement_parameter_builder(condition_keys, 0, condition_operator);
-        let statement = format!("DELETE {} WHERE {}", self.table_name, condition_statement);
-
-        let params = Self::params_generator(condition_values);
-        match self.execute(&statement, &params).await {
-            Ok(_) => Ok(()),
-            Err(e) => return Err(format!("DELETE failed due to {}", e).into()),
+    pub(crate) async fn delete(&self, conditions: Conditions) -> Result<(), Box<dyn std::error::Error>> {
+        if conditions.is_empty() {
+            return Err("'delete' method unsupports deleting records without any condition.".into())
         }
+
+        let statement_base = SqlType::Delete.sql_build(self.table_name.as_str());
+        let mut  statement_vec = vec![statement_base];
+        statement_vec.push(conditions.generate_statement_text(0)?);
+
+        let statement = statement_vec.join(" ");
+        println!("{}", statement);
+
+        Ok(())
     }
 
     pub(crate) async fn query_row_sql(&self, statement: &str, params: &[&str]) -> Result<Vec<Row>, Box<dyn std::error::Error>> {
@@ -397,20 +304,5 @@ impl PostgresBase {
 
     fn params_ref_generator<'a>(box_params: &'a[Box<dyn ToSql + Sync>]) -> Vec<&'a(dyn ToSql + Sync)> {
         box_params.iter().map(AsRef::as_ref).collect()
-    }
-
-    fn statement_parameter_builder(keys: &[&str], prev_index: usize, condition_operator: ConditionOperator) -> String {
-        let mut statement_parameter = "".to_string();
-        for (index, key) in keys.iter().enumerate() {
-            statement_parameter += format!("{} = ${}", key, index + prev_index + 1).as_str();
-            if index + 1 != keys.len() {
-                match condition_operator {
-                    ConditionOperator::And => statement_parameter += " AND ",
-                    ConditionOperator::Or => statement_parameter += " OR ",
-                    ConditionOperator::Parameter => statement_parameter += ", ",
-                }
-            }
-        }
-        statement_parameter
     }
 }

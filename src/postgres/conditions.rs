@@ -10,7 +10,7 @@ use crate::postgres::validators::validate_string;
 /// - `LowerEq`: The lower than or equal to operator.
 /// - `GraterEq`: The greater than or equal to operator.
 #[derive(Clone)]
-enum ComparisonOperator {
+pub(crate) enum ComparisonOperator {
     Equal,
     Lower,
     Grater,
@@ -26,7 +26,7 @@ enum ComparisonOperator {
 /// second `String` represents the table name.
 /// - `False`: Specifies that the table has no join.
 #[derive(Clone)]
-pub(super) enum IsJoin {
+pub(crate) enum IsJoin {
     True(String, String),
     False,
 }
@@ -38,7 +38,7 @@ pub(super) enum IsJoin {
 /// - `And`: The logical AND operator.
 /// - `Or`: The logical OR operator.
 #[derive(Clone)]
-enum LogicalOperator {
+pub(crate) enum LogicalOperator {
     FirstCondition,
     And,
     Or,
@@ -54,7 +54,7 @@ struct Condition {
 
 /// Represents a set of conditions used for filtering or joining data.
 #[derive(Clone)]
-struct Conditions {
+pub(crate) struct Conditions {
     logics: Vec<LogicalOperator>,
     conditions: Vec<Condition>,
     is_join: IsJoin,
@@ -70,7 +70,7 @@ impl Conditions {
     /// # Returns
     ///
     /// A new instance of the structure with empty vectors for logics and conditions, and the specified join type.
-    fn new(join: IsJoin) -> Self {
+    pub(crate) fn new(join: IsJoin) -> Self {
         Self {
             logics: Vec::new(),
             conditions: Vec::new(),
@@ -78,9 +78,8 @@ impl Conditions {
         }
     }
 
-    fn add_condition(&mut self, column: &str, value: &str, comparison: ComparisonOperator, condition_chain: LogicalOperator) -> Result<&mut Self, ConditionError> {
+    pub(crate) fn add_condition(&mut self, column: &str, value: &str, comparison: ComparisonOperator, condition_chain: LogicalOperator) -> Result<&mut Self, ConditionError> {
         validate_string(column, "column", &ConditionErrorGenerator)?;
-        validate_string(value, "value", &ConditionErrorGenerator)?;
 
         let mut validated_condition_chain: LogicalOperator = condition_chain.clone();
         if let LogicalOperator::FirstCondition = condition_chain  {
@@ -88,7 +87,9 @@ impl Conditions {
                 return Err(ConditionError::InputInvalidError(
                     "Already condition exists. 'FirstCondition' can be used only specifying the first condition.".to_string()));
             }
-            else {
+        }
+        else {
+            if self.conditions.is_empty() {
                 eprintln!("The first condition should have 'FirstCondition' as 'condition_chain'. Automatically converted.");
                 validated_condition_chain = LogicalOperator::FirstCondition;
             }
@@ -106,7 +107,11 @@ impl Conditions {
         Ok(self)
     }
 
-    fn generate_statement_text(&self, start_index: usize) -> Result<String, StatementError> {
+    pub(super) fn is_empty(&self) -> bool {
+        self.conditions.is_empty()
+    }
+
+    pub(super) fn generate_statement_text(&self, start_index: usize) -> Result<String, StatementError> {
         let mut statement_texts: Vec<String> = Vec::new();
 
         for (index, (condition, logic)) in self.conditions.iter().zip(&self.logics).enumerate() {
@@ -130,7 +135,7 @@ impl Conditions {
 impl Condition {
     fn generate_statement_text(&self, is_join: IsJoin) -> String {
         let table_name = match is_join {
-            IsJoin::True(schema, table_name) => format!("{}.{}", schema, table_name),
+            IsJoin::True(schema, table_name) => format!("{}.{}.{}", schema, table_name, self.key),
             IsJoin::False => self.key.to_string(),
         };
         let operator = match self.operator {
