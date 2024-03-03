@@ -21,7 +21,7 @@ impl JoinTables {
         }
     }
 
-    pub(crate) fn add_join_table(&mut self, table_name: &str, schema: Option<&str>, join_columns: &[&str], destination_columns: &[&str]) -> Result<Self, JoinTableError> {
+    pub(crate) fn add_join_table(&mut self, table_name: &str, schema: Option<&str>, join_columns: &[&str], destination_columns: &[&str]) -> Result<&mut Self, JoinTableError> {
         validate_string(table_name, "table_name", &JoinTableErrorGenerator)?;
         let schema_str = match schema {
             Some(name) => {
@@ -43,10 +43,9 @@ impl JoinTables {
             destination_columns: convert_vec(destination_columns),
         };
 
-        let mut self_data = self.clone();
-        self_data.tables.push(join_table);
+        self.tables.push(join_table);
 
-        Ok(self_data)
+        Ok(self)
     }
 
     fn generate_statement_text(&self, main_table: &str) -> Result<String, StatementError> {
@@ -62,14 +61,6 @@ impl JoinTables {
         }
         Ok(statement_texts.join(" "))
     }
-
-    // fn validate_string(str: &str, param_name: &str) -> Result<(), JoinTableError> {
-    //     if !validate_alphanumeric_name(str, "_") {
-    //         Err(JoinTableError::InputInvalidError(format!("'{}' has invalid characters. '{}' allows alphabets, numbers and under bar only.", str, param_name)))
-    //     } else {
-    //         Ok(())
-    //     }
-    // }
 
     fn validate_column_collection_pare(join_columns: &[&str], destination_columns: &[&str]) -> Result<(), JoinTableError> {
         if !join_columns.iter().all(|column| validate_alphanumeric_name(column, "_")) {

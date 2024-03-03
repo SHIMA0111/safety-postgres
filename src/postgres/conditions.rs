@@ -1,5 +1,5 @@
 use crate::postgres::errors::{ConditionError, ConditionErrorGenerator, StatementError};
-use crate::postgres::validators::{validate_alphanumeric_name, validate_string};
+use crate::postgres::validators::validate_string;
 
 /// Represents a comparison operator.
 ///
@@ -78,7 +78,7 @@ impl Conditions {
         }
     }
 
-    fn add_condition(&mut self, column: &str, value: &str, comparison: ComparisonOperator, condition_chain: LogicalOperator) -> Result<Self, ConditionError> {
+    fn add_condition(&mut self, column: &str, value: &str, comparison: ComparisonOperator, condition_chain: LogicalOperator) -> Result<&mut Self, ConditionError> {
         validate_string(column, "column", &ConditionErrorGenerator)?;
         validate_string(value, "value", &ConditionErrorGenerator)?;
 
@@ -103,7 +103,7 @@ impl Conditions {
         self.logics.push(validated_condition_chain);
         self.conditions.push(condition);
 
-        Ok(self.clone())
+        Ok(self)
     }
 
     fn generate_statement_text(&self, start_index: usize) -> Result<String, StatementError> {
@@ -125,15 +125,6 @@ impl Conditions {
 
         Ok(statement_texts.join(" "))
     }
-
-    // fn validate_string(str: &str, param_name: &str) -> Result<(), ConditionError> {
-    //     if !validate_alphanumeric_name(str, "_") {
-    //         Err(ConditionError::InputInvalidError(
-    //             format!("'{}' has invalid characters. '{}' allows alphabets, numbers and under bar only.", str, param_name)))
-    //     } else {
-    //         Ok(())
-    //     }
-    // }
 }
 
 impl Condition {
