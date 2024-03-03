@@ -1,6 +1,6 @@
 use std::fmt;
 use std::error::Error;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, write};
 
 
 pub(super) trait ErrorGenerator<E> {
@@ -121,13 +121,15 @@ impl ErrorGenerator<UpdateSetError> for UpdateSetErrorGenerator {
 
 #[derive(Debug)]
 pub(super) enum InsertValueError {
-    InputInvalidError(String)
+    InputInvalidError(String),
+    InputInconsistentError(String),
 }
 
 impl fmt::Display for InsertValueError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             InsertValueError::InputInvalidError(e) => write!(f, "Error occurred during validating the input data due to {}", e),
+            InsertValueError::InputInconsistentError(e) => write!(f, "Error occurred during check the input data due to {}", e),
         }
     }
 }

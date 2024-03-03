@@ -103,18 +103,23 @@ struct InsertValue {
 #[derive(Clone)]
 struct InsertValues {
     insert_values: Vec<InsertValue>,
+    records: u32,
 }
 
 
 impl InsertValues {
-    fn new() -> Self {
+    fn new(records: u32) -> Self {
         Self {
             insert_values: Vec::new(),
+            records
         }
     }
 
     fn add_value(&mut self, column: &str, values: &[&str]) -> Result<Self, InsertValueError> {
         validate_string(column, "column", &InsertValueErrorGenerator)?;
+        if self.records != (values.len() as u32) {
+            return Err(InsertValueError::InputInvalidError("'values' should have match number with the 'records' setting.".to_string()));
+        }
 
         let insert_value = InsertValue {
             column: column.to_string(),
@@ -159,10 +164,17 @@ impl SqlType {
             SqlType::Insert(insert_values) => {
                 sql_vec.extend(vec!["INSERT INTO".to_string(), table_name]);
                 let mut columns_vec: Vec<String> = Vec::new();
-                let mut values_placeholder_vec: Vec<String> = Vec::new();
-                for (index, insert_value) in insert_values.insert_values.iter().enumerate() {
+                let number_elements = insert_values.records * (insert_values.insert_values.len() as u32);
+                for insert_value in &insert_values.insert_values {
                     columns_vec.push(insert_value.column.to_string());
-                    values_placeholder_vec.push(format!("${}", index + 1));
+                }
+                let mut values_placeholder_vec: Vec<String> = Vec::new();
+                for placeholder_index in 1..=number_elements {
+                    match placeholder_index % insert_values.records {
+                        0 => values_placeholder_vec.push(format!("${})", placeholder_index)),
+                        1 => values_placeholder_vec.push(format!("(${}", placeholder_index)),
+                        _ => values_placeholder_vec.push(format!("${}", placeholder_index))
+                    }
                 }
                 sql_vec.push(format!("({}) VALUES ({})", columns_vec.join(", "), values_placeholder_vec.join(", ")));
                 sql_vec.join(" ")
