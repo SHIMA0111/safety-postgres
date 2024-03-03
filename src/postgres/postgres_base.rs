@@ -3,10 +3,11 @@ use tokio_postgres::{NoTls, Error as PGError, row::Row, Client, Statement};
 use tokio_postgres::types::ToSql;
 use chrono::NaiveDate;
 use crate::postgres::app_config::AppConfig;
-use crate::postgres::conditions::{ComparisonOperator, Conditions, IsJoin, LogicalOperator};
+use crate::postgres::conditions::{Conditions, IsJoin};
+use crate::postgres::generate_params::{box_param_generator, params_ref_generator};
 use crate::postgres::join_tables::JoinTables;
-use crate::postgres::sqls::{InsertRecords, QueryColumns, SqlType, UpdateSets};
-use crate::postgres::validators::{parameter_validator, validate_alphanumeric_name};
+use crate::postgres::sql_base::{InsertRecords, QueryColumns, SqlType, UpdateSets};
+use crate::postgres::validators::validate_alphanumeric_name;
 
 pub(crate) struct PostgresBase {
     username: String,
@@ -118,8 +119,10 @@ impl PostgresBase {
     }
 
     pub(crate) async fn insert(&self, insert_records: InsertRecords) -> Result<(), Box<dyn std::error::Error>> {
-        let statement = SqlType::Insert(insert_records).sql_build(self.table_name.as_str());
+        let insert = SqlType::Insert(insert_records.clone());
+        let statement = insert.sql_build(self.table_name.as_str());
         println!("{}", statement);
+        println!("{:?}", insert_records.get_flat_values());
         Ok(())
     }
 
@@ -171,8 +174,8 @@ impl PostgresBase {
         }
 
 
-        let box_params = Self::params_generator(params);
-        let params_ref = Self::params_ref_generator(&box_params);
+        let box_params = box_param_generator(params);
+        let params_ref = params_ref_generator(&box_params);
 
         let client = match self.client.as_ref() {
             Some(client) => client,
@@ -251,7 +254,7 @@ impl PostgresBase {
             None => return Err("Client does not exist. Please connect the PostgreSQL first via connect method.".into()),
         };
         let statement: Statement = client.prepare(statement).await?;
-        let params_ref: Vec<&(dyn ToSql + Sync)> = Self::params_ref_generator(&params);
+        let params_ref: Vec<&(dyn ToSql + Sync)> = params_ref_generator(&params);
 
         match client.execute(&statement, &params_ref).await {
             Ok(res) => Ok(res),
@@ -270,39 +273,5 @@ impl PostgresBase {
             schema_name: self.schema_name.clone(),
             client: None
         }
-    }
-
-    fn params_generator(row_params: &[&str]) -> Vec<Box<dyn ToSql + Sync>> {
-        let mut params: Vec<Param> = Vec::new();
-        for row_param in row_params {
-            let str_param = row_param.to_string();
-            if let Ok(i) = str_param.parse::<i32>() {
-                params.push(Param::Int(i));
-            }
-            else if let Ok(f) = str_param.parse::<f32>() {
-                params.push(Param::Float(f));
-            }
-            else if let Ok(d) = NaiveDate::parse_from_str(str_param.as_str(), "%Y-%m-%d") {
-                params.push(Param::Date(d));
-            }
-            else {
-                params.push(Param::Text(str_param));
-            }
-        }
-
-        let mut box_param:Vec<Box<dyn ToSql + Sync>> = Vec::new();
-        for param in params {
-            match param {
-                Param::Float(f) => box_param.push(Box::new(f) as Box<dyn ToSql + Sync>),
-                Param::Int(i) => box_param.push(Box::new(i) as Box<dyn ToSql + Sync>),
-                Param::Text(t) => box_param.push(Box::new(t) as Box<dyn ToSql + Sync>),
-                Param::Date(d) => box_param.push(Box::new(d) as Box<dyn ToSql + Sync>),
-            };
-        }
-        box_param
-    }
-
-    fn params_ref_generator<'a>(box_params: &'a[Box<dyn ToSql + Sync>]) -> Vec<&'a(dyn ToSql + Sync)> {
-        box_params.iter().map(AsRef::as_ref).collect()
     }
 }

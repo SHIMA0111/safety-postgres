@@ -23,7 +23,7 @@ pub(crate) struct QueryColumns {
 struct QueryColumn {
     schema_name: String,
     table_name: String,
-    column: Vec<String>,
+    column: String,
 }
 
 impl QueryColumns {
@@ -34,23 +34,19 @@ impl QueryColumns {
         }
     }
 
-    pub(crate) fn add_column(&mut self, schema_name: &str, table_name: &str, column: &[&str]) -> Result<&mut Self, QueryColumnError> {
+    pub(crate) fn add_column(&mut self, schema_name: &str, table_name: &str, column: &str) -> Result<&mut Self, QueryColumnError> {
         if self.all_columns {
             return Err(QueryColumnError::InputInconsistentError("'all_columns' flag is true so all columns will queried so you can't set column. Please check your input.".to_string()));
         }
 
         validate_string(schema_name, "schema_name", &QueryColumnErrorGenerator)?;
         validate_string(table_name, "table_name", &QueryColumnErrorGenerator)?;
-        let column_vec = column.iter()
-            .map(|column_name| {
-                validate_string(column_name, "column", &QueryColumnErrorGenerator)
-                    .map(|_| column_name.to_string())
-            }).collect::<Result<Vec<String>, QueryColumnError>>()?;
+        validate_string(column, "column_name", &QueryColumnErrorGenerator)?;
 
         let query_column = QueryColumn {
             schema_name: schema_name.to_string(),
             table_name: table_name.to_string(),
-            column: column_vec,
+            column: column.to_string(),
         };
 
         self.columns.push(query_column);
@@ -69,16 +65,14 @@ impl SqlBuilder for QueryColumns {
             let mut columns: Vec<String> = Vec::new();
             for query_column in &self.columns {
                 let mut column_condition: Vec<String> = Vec::new();
-                for column_name in &query_column.column {
-                    if !query_column.schema_name.is_empty() {
-                        column_condition.push(query_column.schema_name.to_string());
-                    }
-                    if !query_column.table_name.is_empty() {
-                        column_condition.push(query_column.table_name.to_string());
-                    }
-                    column_condition.push(column_name.to_string());
-                    columns.push(column_condition.join("."));
+                if !query_column.schema_name.is_empty() {
+                    column_condition.push(query_column.schema_name.clone());
                 }
+                if !query_column.table_name.is_empty() {
+                    column_condition.push(query_column.table_name.clone());
+                }
+                column_condition.push(query_column.column.clone());
+                columns.push(column_condition.join("."));
             }
             sql_vec.push(columns.join(", "));
         }
@@ -115,6 +109,14 @@ impl UpdateSets {
         self.update_sets.push(update_set);
 
         Ok(self)
+    }
+
+    pub(super) fn get_flat_values(&self) -> Vec<String> {
+        let mut flat_values = Vec::new();
+        for update_set in &self.update_sets {
+            flat_values.push(update_set.value.clone());
+        }
+        flat_values
     }
 
     pub(crate) fn get_num_values(&self) -> usize {
@@ -174,6 +176,14 @@ impl InsertRecords {
         self.insert_records.push(insert_record);
 
         Ok(self)
+    }
+
+    pub(super) fn get_flat_values(&self) -> Vec<String> {
+        let mut flat_values = Vec::new();
+        for record in &self.insert_records {
+            flat_values.extend(record.values.clone());
+        }
+        flat_values
     }
 }
 

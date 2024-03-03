@@ -1,13 +1,14 @@
 use crate::postgres::conditions::{ComparisonOperator, Conditions, IsJoin, LogicalOperator};
 use crate::postgres::join_tables::JoinTables;
 use crate::postgres::postgres_base::PostgresBase;
-use crate::postgres::sqls::{InsertRecords, QueryColumns, UpdateSets};
+use crate::postgres::sql_base::{InsertRecords, QueryColumns, UpdateSets};
 
 mod postgres;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let sql_base = QueryColumns::new(true);
+    let mut sql_base = QueryColumns::new(false);
+    sql_base.add_column("", "", "record_id")?;
     let mut join_base = JoinTables::new();
     let join_columns = vec!["who", "test"];
     let destinations = vec!["who_id", "test_main"];
