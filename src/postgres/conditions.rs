@@ -130,6 +130,10 @@ impl Conditions {
 
         Ok(statement_texts.join(" "))
     }
+
+    pub(super) fn get_flat_values(&self) -> Vec<String> {
+        self.conditions.iter().map(|condition| condition.value.clone()).collect::<Vec<String>>()
+    }
 }
 
 impl Condition {

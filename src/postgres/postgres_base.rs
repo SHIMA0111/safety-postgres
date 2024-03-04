@@ -107,6 +107,8 @@ impl PostgresBase {
             let join_statement = join_tables.generate_statement_text(self.table_name.as_str())?;
             statement_vec.push(join_statement);
         }
+
+        let params_values = conditions.get_flat_values();
         if !conditions.is_empty() {
             let condition_statement = conditions.generate_statement_text(0)?;
             statement_vec.push(condition_statement);
@@ -114,6 +116,7 @@ impl PostgresBase {
 
         let statement = statement_vec.join(" ");
         println!("{}", statement);
+        println!("{:?}", params_values);
 
         Ok(())
     }
@@ -121,8 +124,9 @@ impl PostgresBase {
     pub(crate) async fn insert(&self, insert_records: InsertRecords) -> Result<(), Box<dyn std::error::Error>> {
         let insert = SqlType::Insert(insert_records.clone());
         let statement = insert.sql_build(self.table_name.as_str());
+        let params_values = insert_records.get_flat_values();
         println!("{}", statement);
-        println!("{:?}", insert_records.get_flat_values());
+        println!("{:?}", params_values);
         Ok(())
     }
 
@@ -140,12 +144,15 @@ impl PostgresBase {
         let mut statement_vec = vec![statement_base];
         let set_num = update_set.get_num_values();
 
+        let mut params_values = update_set.get_flat_values();
+        params_values.extend(conditions.get_flat_values());
         if !conditions.is_empty() {
             let statement_condition = conditions.generate_statement_text(set_num)?;
             statement_vec.push(statement_condition);
         }
 
         println!("{}", statement_vec.join(" "));
+        println!("{:?}", params_values);
         Ok(())
     }
 
@@ -156,10 +163,12 @@ impl PostgresBase {
 
         let statement_base = SqlType::Delete.sql_build(self.table_name.as_str());
         let mut  statement_vec = vec![statement_base];
+        let params_values = conditions.get_flat_values();
         statement_vec.push(conditions.generate_statement_text(0)?);
 
         let statement = statement_vec.join(" ");
         println!("{}", statement);
+        println!("{:?}", params_values);
 
         Ok(())
     }
