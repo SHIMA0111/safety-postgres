@@ -163,14 +163,16 @@ impl InsertRecords {
         }
     }
 
-    pub(crate) fn add_value(&mut self, values: &[&str]) -> Result<&mut Self, InsertValueError> {
-        self.keys.iter().map(|key| validate_string(key.as_str(), "columns", &InsertValueErrorGenerator)).collect::<Result<_, InsertValueError>>()?;
-        if values.len() != self.keys.len() {
+    pub(crate) fn add_record(&mut self, record: &[&str]) -> Result<&mut Self, InsertValueError> {
+        if self.insert_records.is_empty() {
+            self.keys.iter().map(|key| validate_string(key.as_str(), "columns", &InsertValueErrorGenerator)).collect::<Result<_, InsertValueError>>()?;
+        }
+        if record.len() != self.keys.len() {
             return Err(InsertValueError::InputInconsistentError("'values' should match with the 'columns' number. Please input data.".to_string()));
         }
 
         let insert_record = InsertRecord {
-            values: values.iter().map(|value| value.to_string()).collect(),
+            values: record.iter().map(|value| value.to_string()).collect(),
         };
 
         self.insert_records.push(insert_record);
@@ -213,7 +215,7 @@ impl SqlType {
             SqlType::Select(query_columns) => query_columns.build_sql(table_name),
             SqlType::Insert(insert_values) => insert_values.build_sql(table_name),
             SqlType::Update(update_sets) => update_sets.build_sql(table_name),
-            SqlType::Delete => format!("DELETE {}", table_name),
+            SqlType::Delete => format!("DELETE FROM {}", table_name),
         }
     }
 }

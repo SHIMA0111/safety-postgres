@@ -11,19 +11,19 @@ pub(crate) struct AppConfig {
 
 impl AppConfig {
     pub(crate) fn new() -> Result<AppConfig, String> {
-        let db_username = match std::env::var("WORKTIME_DB_USER") {
+        let db_username = match std::env::var("DB_USER") {
             Ok(username) => username,
             Err(_) => return Err("'username' isn't presented by environment variable. Please check your environment.".to_string()),
         };
-        let db_password = match std::env::var("WORKTIME_DB_PASSWORD") {
+        let db_password = match std::env::var("DB_PASSWORD") {
             Ok(password) => password,
             Err(_) => return Err("'password' isn't presented by environment variable. Please check your environment.".to_string()),
         };
-        let db_hostname = match std::env::var("WORKTIME_DB_HOST") {
+        let db_hostname = match std::env::var("DB_HOST") {
             Ok(hostname) => hostname,
             Err(_) => return Err("'hostname' isn't presented by environment variable. Please check your environment.".to_string()),
         };
-        let db_port = match std::env::var("WORKTIME_PORT") {
+        let db_port = match std::env::var("DB_PORT") {
             Ok(port_number_str) => {
                 port_number_str.parse::<u32>().unwrap_or_else(|e| {
                     eprintln!("Port number parse error due to {}", e);
@@ -32,7 +32,7 @@ impl AppConfig {
             },
             Err(_) => 5432,
         };
-        let db_name = match std::env::var("WORKTIME_DBNAME") {
+        let db_name = match std::env::var("DB_NAME") {
             Ok(dbname) => {
                 if !validate_alphanumeric_name(&dbname, "_") {
                     eprintln!("{} is invalid name. 'dbname' is filled as 'postgres' automatically.", dbname);

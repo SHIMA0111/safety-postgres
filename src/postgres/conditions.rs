@@ -47,6 +47,7 @@ pub(crate) enum LogicalOperator {
 /// Represents a specific condition used for filtering or joining data.
 #[derive(Clone)]
 struct Condition {
+    is_joined_table: IsJoin,
     key: String,
     operator: ComparisonOperator,
     value: String,
@@ -57,7 +58,6 @@ struct Condition {
 pub(crate) struct Conditions {
     logics: Vec<LogicalOperator>,
     conditions: Vec<Condition>,
-    is_join: IsJoin,
 }
 
 impl Conditions {
@@ -70,15 +70,14 @@ impl Conditions {
     /// # Returns
     ///
     /// A new instance of the structure with empty vectors for logics and conditions, and the specified join type.
-    pub(crate) fn new(join: IsJoin) -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             logics: Vec::new(),
             conditions: Vec::new(),
-            is_join: join,
         }
     }
 
-    pub(crate) fn add_condition(&mut self, column: &str, value: &str, comparison: ComparisonOperator, condition_chain: LogicalOperator) -> Result<&mut Self, ConditionError> {
+    pub(crate) fn add_condition(&mut self, column: &str, value: &str, comparison: ComparisonOperator, condition_chain: LogicalOperator, is_joined_table: IsJoin) -> Result<&mut Self, ConditionError> {
         validate_string(column, "column", &ConditionErrorGenerator)?;
 
         let mut validated_condition_chain: LogicalOperator = condition_chain.clone();
@@ -96,6 +95,7 @@ impl Conditions {
         }
 
         let condition = Condition {
+            is_joined_table,
             key: column.to_string(),
             operator: comparison,
             value: value.to_string(),
@@ -123,7 +123,7 @@ impl Conditions {
                 LogicalOperator::And => statement_texts.push("AND".to_string()),
                 LogicalOperator::Or => statement_texts.push("OR".to_string()),
             }
-            let condition_text = condition.generate_statement_text(self.is_join.clone());
+            let condition_text = condition.generate_statement_text();
             let statement_text = format!("{} ${}", condition_text, index + start_index + 1);
             statement_texts.push(statement_text);
         }
@@ -137,8 +137,8 @@ impl Conditions {
 }
 
 impl Condition {
-    fn generate_statement_text(&self, is_join: IsJoin) -> String {
-        let table_name = match is_join {
+    fn generate_statement_text(&self) -> String {
+        let table_name = match &self.is_joined_table {
             IsJoin::True(schema, table_name) => format!("{}.{}.{}", schema, table_name, self.key),
             IsJoin::False => self.key.to_string(),
         };

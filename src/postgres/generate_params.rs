@@ -12,7 +12,7 @@ enum Param {
     Bool(bool),
 }
 
-pub(super) fn box_param_generator(str_params: &[&str]) -> Vec<Box<dyn ToSql + Sync>> {
+pub(super) fn box_param_generator(str_params: &[String]) -> Vec<Box<dyn ToSql + Sync>> {
     let mut params: Vec<Param> = Vec::new();
     for str_param in str_params {
         if let Ok(i) = str_param.parse::<i32>() {

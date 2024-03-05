@@ -1,9 +1,8 @@
 use tokio;
 use tokio_postgres::{NoTls, Error as PGError, row::Row, Client, Statement};
 use tokio_postgres::types::ToSql;
-use chrono::NaiveDate;
 use crate::postgres::app_config::AppConfig;
-use crate::postgres::conditions::{Conditions, IsJoin};
+use crate::postgres::conditions::Conditions;
 use crate::postgres::generate_params::{box_param_generator, params_ref_generator};
 use crate::postgres::join_tables::JoinTables;
 use crate::postgres::sql_base::{InsertRecords, QueryColumns, SqlType, UpdateSets};
@@ -20,11 +19,14 @@ pub(crate) struct PostgresBase {
     client: Option<Client>
 }
 
-enum Param {
-    Text(String),
-    Int(i32),
-    Float(f32),
-    Date(NaiveDate),
+enum ExecuteType {
+    Execute,
+    Query,
+}
+
+enum ExecuteResult {
+    Execute(u64),
+    Query(Vec<Row>),
 }
 
 impl PostgresBase {
@@ -42,7 +44,7 @@ impl PostgresBase {
             Err(e) => return Err(e.into()),
         };
         let schema_name: String;
-        let table_name_w_schema = match std::env::var("WORKTIME_DB_SCHEMA") {
+        let table_name_w_schema = match std::env::var("DB_SCHEMA") {
             Ok(schema) => {
 
                 if !validate_alphanumeric_name(&schema, "_") {
@@ -91,15 +93,15 @@ impl PostgresBase {
         Ok(())
     }
 
-    pub(crate) async fn query_raw(&self, query_columns: QueryColumns) -> Result<(), Box<dyn std::error::Error>> {
-        self.query_inner_join_conditions(query_columns, JoinTables::new(), Conditions::new(IsJoin::False)).await
+    pub(crate) async fn query_raw(&self, query_columns: QueryColumns) -> Result<Vec<Row>, Box<dyn std::error::Error>> {
+        self.query_inner_join_conditions(query_columns, JoinTables::new(), Conditions::new()).await
     }
 
-    pub(crate) async fn query_condition_raw(&self, query_column: QueryColumns, conditions: Conditions) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) async fn query_condition_raw(&self, query_column: QueryColumns, conditions: Conditions) -> Result<Vec<Row>, Box<dyn std::error::Error>> {
         self.query_inner_join_conditions(query_column, JoinTables::new(), conditions).await
     }
 
-    pub(crate) async fn query_inner_join_conditions(&self, query_columns: QueryColumns, join_tables: JoinTables, conditions: Conditions) -> Result<(), Box<dyn std::error::Error>> {
+    pub(crate) async fn query_inner_join_conditions(&self, query_columns: QueryColumns, join_tables: JoinTables, conditions: Conditions) -> Result<Vec<Row>, Box<dyn std::error::Error>> {
         let query_statement: String = SqlType::Select(query_columns).sql_build(self.table_name.as_str());
         let mut statement_vec: Vec<String> = vec![query_statement];
 
@@ -115,24 +117,22 @@ impl PostgresBase {
         }
 
         let statement = statement_vec.join(" ");
-        println!("{}", statement);
-        println!("{:?}", params_values);
-
-        Ok(())
+        let res = self.query(&statement, &params_values).await?;
+        Ok(res)
     }
 
     pub(crate) async fn insert(&self, insert_records: InsertRecords) -> Result<(), Box<dyn std::error::Error>> {
         let insert = SqlType::Insert(insert_records.clone());
         let statement = insert.sql_build(self.table_name.as_str());
         let params_values = insert_records.get_flat_values();
-        println!("{}", statement);
-        println!("{:?}", params_values);
+        let res = self.execute(&statement, &params_values).await?;
+        println!("{} record(s) are inserted.", res);
         Ok(())
     }
 
     pub(crate) async fn update(&self, update_set: UpdateSets, allow_all_update: bool) -> Result<(), Box<dyn std::error::Error>> {
         if allow_all_update {
-            self.update_condition(update_set, Conditions::new(IsJoin::False)).await
+            self.update_condition(update_set, Conditions::new()).await
         }
         else {
             Err("'update' method will update all records in the specified table so please consider to use 'update_condition' instead of this.".into())
@@ -150,9 +150,10 @@ impl PostgresBase {
             let statement_condition = conditions.generate_statement_text(set_num)?;
             statement_vec.push(statement_condition);
         }
+        let statement = statement_vec.join(" ");
 
-        println!("{}", statement_vec.join(" "));
-        println!("{:?}", params_values);
+        let res = self.execute(&statement, &params_values).await?;
+        println!("{} record(s) are updated.", res);
         Ok(())
     }
 
@@ -167,35 +168,10 @@ impl PostgresBase {
         statement_vec.push(conditions.generate_statement_text(0)?);
 
         let statement = statement_vec.join(" ");
-        println!("{}", statement);
-        println!("{:?}", params_values);
+        let res = self.execute(&statement, &params_values).await?;
+        println!("{} record(s) are deleted.", res);
 
         Ok(())
-    }
-
-    pub(crate) async fn query_row_sql(&self, statement: &str, params: &[&str]) -> Result<Vec<Row>, Box<dyn std::error::Error>> {
-        if !validate_alphanumeric_name(statement, "$_,.=* ") {
-            return Err("SQL statement is allowed only alphabets and number and allowed symbols but got invalid chars. Please check your input.".into());
-        }
-        let state_placeholders = statement.matches("$").count();
-        if state_placeholders != params.len() {
-            return Err("The number of 'statement' placeholders should be match with params number.".into());
-        }
-
-
-        let box_params = box_param_generator(params);
-        let params_ref = params_ref_generator(&box_params);
-
-        let client = match self.client.as_ref() {
-            Some(client) => client,
-            None => return Err("Client does not exist. Please connect the PostgreSQL first via connect method.".into()),
-        };
-        let statement = client.prepare(statement).await?;
-
-        match client.query(&statement, &params_ref).await {
-            Ok(res) => Ok(res),
-            Err(e) => return Err(format!("query failed due to {}.", e).into())
-        }
     }
 
     #[allow(dead_code)]
@@ -254,20 +230,47 @@ impl PostgresBase {
         } else {
             format!("postgresql://{}:{}@{}:{}/{}", self.username, self.password, self.hostname, self.port, self.dbname)
         }
-
     }
 
-    async fn execute(&self, statement: &String, params: &[Box<dyn ToSql + Sync>]) -> Result<u64, Box<dyn std::error::Error>> {
+    async fn query(&self, statement_str: &String, params: &[String]) -> Result<Vec<Row>, Box<dyn std::error::Error>> {
+        let result = self.execute_core(statement_str, params, ExecuteType::Query).await?;
+        match result {
+            ExecuteResult::Query(res) => Ok(res),
+            _ => return Err("Execution internal error occurred, please contact the developer.".into()),        }
+    }
+
+    async fn execute(&self, statement_str: &String, params: &[String]) -> Result<u64, Box<dyn std::error::Error>> {
+        let result = self.execute_core(statement_str, params, ExecuteType::Execute).await?;
+        match result {
+            ExecuteResult::Execute(res) => Ok(res),
+            _ => return Err("Execution internal error occurred, please contact the developer.".into()),
+        }
+    }
+
+    async fn execute_core(&self, statement_str: &String, params: &[String], execute_type: ExecuteType) -> Result<ExecuteResult, Box<dyn std::error::Error>> {
         let client = match self.client.as_ref() {
             Some(client) => client,
             None => return Err("Client does not exist. Please connect the PostgreSQL first via connect method.".into()),
         };
-        let statement: Statement = client.prepare(statement).await?;
-        let params_ref: Vec<&(dyn ToSql + Sync)> = params_ref_generator(&params);
 
-        match client.execute(&statement, &params_ref).await {
-            Ok(res) => Ok(res),
-            Err(e) => Err(format!("SQL executor failed due to {}", e).into()),
+        let box_params = box_param_generator(params);
+        let params_ref: Vec<&(dyn ToSql + Sync)> = params_ref_generator(&box_params);
+
+        let statement: Statement = client.prepare(statement_str).await?;
+
+        match execute_type {
+            ExecuteType::Execute => {
+                match client.execute(&statement, &params_ref).await {
+                    Ok(res) => Ok(ExecuteResult::Execute(res)),
+                    Err(e) => return Err(format!("SQL executor failed due to {}", e).into()),
+                }
+            }
+            ExecuteType::Query => {
+                match client.query(&statement, &params_ref).await {
+                    Ok(res) => Ok(ExecuteResult::Query(res)),
+                    Err(e) => return Err(format!("SQL executor failed due to {}", e).into()),
+                }
+            }
         }
     }
 
