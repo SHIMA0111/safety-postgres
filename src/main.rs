@@ -17,11 +17,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let record = vec!["3", "2024-03-08", "1", "10.2", "Test strings"];
     sql_base.add_record(&record)?;
 
-    // let mut condition = Conditions::new(IsJoin::False);
-    // condition.add_condition("id", "17", ComparisonOperator::Equal, LogicalOperator::FirstCondition)?;
+    let mut condition = Conditions::new();
+    // condition.add_condition("id", "17", ComparisonOperator::Equal, LogicalOperator::FirstCondition, IsJoin::False)?;
 
     postgres.connect().await?;
-    // postgres.delete(condition).await?;
-    postgres.insert(sql_base).await?;
+    postgres.delete(condition).await?;
+    // postgres.insert(sql_base).await?;
     Ok(())
 }

@@ -8,23 +8,6 @@ pub(super) trait ErrorGenerator<E> {
 }
 
 #[derive(Debug)]
-pub(crate) enum StatementError {
-    GenerationError(String),
-    InputError(String),
-}
-
-impl fmt::Display for StatementError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::GenerationError(e) => write!(f, "Error occurred during statement generation process due to {}.", e),
-            Self::InputError(e) => write!(f, "Error occurred from statement generator input is invalid on {}.", e),
-        }
-    }
-}
-
-impl Error for StatementError {}
-
-#[derive(Debug)]
 pub(crate) enum JoinTableError {
     InputInconsistentError(String),
     InputInvalidError(String),
@@ -33,8 +16,8 @@ pub(crate) enum JoinTableError {
 impl fmt::Display for JoinTableError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InputInconsistentError(e) => write!(f, "Error occurred during parsing the collection input due to {}", e),
-            Self::InputInvalidError(e) => write!(f, "Error occurred during validating the input data due to {}", e),
+            Self::InputInconsistentError(e) => write!(f, "Error occurred during parsing the collection input in preparing join table process due to {}", e),
+            Self::InputInvalidError(e) => write!(f, "Error occurred during validating the input data in preparing join table process due to {}", e),
         }
     }
 }
@@ -57,7 +40,7 @@ pub(crate) enum ConditionError {
 impl fmt::Display for ConditionError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InputInvalidError(e) => write!(f, "Error occurred during validating the input data due to {}", e),
+            Self::InputInvalidError(e) => write!(f, "Error occurred during validating the input data in condition prepare process due to {}", e),
         }
     }
 }
@@ -81,8 +64,8 @@ pub(crate) enum QueryColumnError {
 impl fmt::Display for QueryColumnError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            QueryColumnError::InputInvalidError(e) => write!(f, "Error occurred during validating the input data due to {}", e),
-            QueryColumnError::InputInconsistentError(e) => write!(f, "Error occurred during query text build process due to {}", e),
+            Self::InputInvalidError(e) => write!(f, "Error occurred during validating the input data in query column process due to {}", e),
+            Self::InputInconsistentError(e) => write!(f, "Error occurred during query text build process in query column process due to {}", e),
         }
     }
 }
@@ -105,7 +88,7 @@ pub(crate) enum UpdateSetError {
 impl fmt::Display for UpdateSetError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            UpdateSetError::InputInvalidError(e) => write!(f, "Error occurred during validating the input data due to {}", e),
+            Self::InputInvalidError(e) => write!(f, "Error occurred during validating the input data in update values process due to {}", e),
         }
     }
 }
@@ -128,8 +111,8 @@ pub(crate) enum InsertValueError {
 impl fmt::Display for InsertValueError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            InsertValueError::InputInvalidError(e) => write!(f, "Error occurred during validating the input data due to {}", e),
-            InsertValueError::InputInconsistentError(e) => write!(f, "Error occurred during check the input data due to {}", e),
+            Self::InputInvalidError(e) => write!(f, "Error occurred during validating the input data in insert values process due to {}", e),
+            Self::InputInconsistentError(e) => write!(f, "Error occurred during check the input data in insert values process due to {}", e),
         }
     }
 }
@@ -143,3 +126,30 @@ impl ErrorGenerator<InsertValueError> for InsertValueErrorGenerator {
         InsertValueError::InputInvalidError(msg)
     }
 }
+
+#[derive(Debug)]
+pub(crate) enum PostgresBaseError {
+    InputInvalidError(String),
+    ConfigNotDefinedError(String),
+    UnsafeExecutionError(String),
+    UnexpectedError(String),
+    ConnectionNotFoundError(String),
+    SQLExecutionError(String),
+    TokioPostgresError(String),
+}
+
+impl fmt::Display for PostgresBaseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InputInvalidError(e) => write!(f, "Error occurred during validating the input data in postgres execution process due to {}", e),
+            Self::ConfigNotDefinedError(e) => write!(f, "Config doesn't exist in your environment arguments. {}", e),
+            Self::UnsafeExecutionError(e) => write!(f, "Unsafe SQL execution is detected from {}.", e),
+            Self::UnexpectedError(e) => write!(f, "Critical error occurred due to {}", e),
+            Self::ConnectionNotFoundError(e) => write!(f, "SQL execution need connection but it can't be found. {}", e),
+            Self::SQLExecutionError(e) => write!(f, "SQL execution failed due to {}", e),
+            Self::TokioPostgresError(e) => write!(f, "Get error from tokio-postgres crate: {}", e),
+        }
+    }
+}
+
+impl Error for PostgresBaseError {}

@@ -1,4 +1,4 @@
-use crate::postgres::errors::{ConditionError, ConditionErrorGenerator, StatementError};
+use crate::postgres::errors::{ConditionError, ConditionErrorGenerator};
 use crate::postgres::validators::validate_string;
 
 /// Represents a comparison operator.
@@ -77,6 +77,19 @@ impl Conditions {
         }
     }
 
+    /// Adds a condition to the conditions' struct.
+    ///
+    /// # Arguments
+    ///
+    /// * `column` - The name of the column to compare.
+    /// * `value` - The value to compare against the column.
+    /// * `comparison` - The comparison operator to use for the comparison.
+    /// * `condition_chain` - The logical operator to use for joining this condition with previous conditions.
+    /// * `is_joined_table` - Indicates whether the column belongs to a joined table.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the query builder if successful, or an error if the condition is invalid.
     pub(crate) fn add_condition(&mut self, column: &str, value: &str, comparison: ComparisonOperator, condition_chain: LogicalOperator, is_joined_table: IsJoin) -> Result<&mut Self, ConditionError> {
         validate_string(column, "column", &ConditionErrorGenerator)?;
 
@@ -107,11 +120,22 @@ impl Conditions {
         Ok(self)
     }
 
+    /// Check if the conditions are empty.
+    ///
+    /// Returns `true` if the conditions are empty, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use crate::ConditionList;
+    /// let conditions = ConditionList::new();
+    /// assert_eq!(conditions.is_empty(), true);
+    /// ```
     pub(super) fn is_empty(&self) -> bool {
         self.conditions.is_empty()
     }
 
-    pub(super) fn generate_statement_text(&self, start_index: usize) -> Result<String, StatementError> {
+    pub(super) fn generate_statement_text(&self, start_index: usize) -> String {
         let mut statement_texts: Vec<String> = Vec::new();
 
         for (index, (condition, logic)) in self.conditions.iter().zip(&self.logics).enumerate() {
@@ -128,9 +152,10 @@ impl Conditions {
             statement_texts.push(statement_text);
         }
 
-        Ok(statement_texts.join(" "))
+        statement_texts.join(" ")
     }
 
+    /// Retrieves all the flatten values from the conditions values.
     pub(super) fn get_flat_values(&self) -> Vec<String> {
         self.conditions.iter().map(|condition| condition.value.clone()).collect::<Vec<String>>()
     }

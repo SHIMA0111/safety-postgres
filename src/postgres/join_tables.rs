@@ -1,4 +1,4 @@
-use crate::postgres::errors::{JoinTableError, JoinTableErrorGenerator, StatementError};
+use crate::postgres::errors::{JoinTableError, JoinTableErrorGenerator};
 use crate::postgres::validators::{validate_alphanumeric_name, validate_string};
 
 #[derive(Clone)]
@@ -42,18 +42,14 @@ impl JoinTables {
         Ok(self)
     }
 
-    pub(super) fn generate_statement_text(&self, main_table: &str) -> Result<String, StatementError> {
-        if !validate_alphanumeric_name(main_table, "_.") {
-            return Err(StatementError::InputError(format!("'{}' has invalid characters. '{}' allows alphabets, numbers and under bar only.", main_table, "main_table")));
-        }
-
+    pub(super) fn generate_statement_text(&self, main_table: &str) -> String {
         let mut statement_texts:Vec<String> = Vec::new();
 
         for table in &self.tables {
-            let statement_text = table.generate_statement_text(main_table.to_string())?;
+            let statement_text = table.generate_statement_text(main_table.to_string());
             statement_texts.push(statement_text);
         }
-        Ok(statement_texts.join(" "))
+        statement_texts.join(" ")
     }
 
     pub(super) fn is_tables_empty(&self) -> bool {
@@ -77,7 +73,7 @@ impl JoinTables {
 }
 
 impl JoinTable {
-    fn generate_statement_text(&self, main_table: String) -> Result<String, StatementError> {
+    fn generate_statement_text(&self, main_table: String) -> String {
         let table_with_schema = if self.schema.is_empty() {
             self.table_name.clone()
         } else {
@@ -90,6 +86,6 @@ impl JoinTable {
                 statement += " AND";
             }
         }
-        Ok(statement)
+        statement
     }
 }

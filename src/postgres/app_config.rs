@@ -1,6 +1,8 @@
-use crate::postgres::postgres_base::PostgresBase;
 use crate::postgres::validators::validate_alphanumeric_name;
 
+/// Represents the configuration for the application.
+///
+/// The `AppConfig` struct holds the necessary information for connecting to the database.
 pub(crate) struct AppConfig {
     pub(crate) db_username: String,
     pub(crate) db_password: String,
@@ -10,6 +12,22 @@ pub(crate) struct AppConfig {
 }
 
 impl AppConfig {
+    /// Creates a new `AppConfig` instance. This struct is hidden from user in generally.
+    ///
+    /// This function retrieves the necessary configuration values from environment variables:
+    /// - `DB_USER`: The database username.
+    /// - `DB_PASSWORD`: The database password.
+    /// - `DB_HOST`: The database hostname.
+    /// - `DB_PORT`: The database port number.
+    /// - `DB_NAME`: The database name.
+    ///
+    /// `DB_USER` and `DB_PASSWORD`, and `DB_HOST` of the environment variables are missing, an error is returned.
+    /// Also, `DB_PORT` and `DB_NAME` are missing, using default value like port=5432 and dbname=postgres.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(AppConfig)`: The `AppConfig` instance with the retrieved configuration values.
+    /// - `Err(String)`: An error message indicating which environment variable is missing.
     pub(crate) fn new() -> Result<AppConfig, String> {
         let db_username = match std::env::var("DB_USER") {
             Ok(username) => username,
