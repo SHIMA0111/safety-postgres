@@ -45,3 +45,35 @@ pub(super) fn validate_string<E, G>(str: &str, param_name: &str, error_generator
         Ok(())
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use crate::postgres::errors::{JoinTableError, JoinTableErrorGenerator};
+    use super::*;
+
+    /// Tests `validate_alphanumeric_name` function.
+    /// It checks if the function correctly validates whether given string consists of only alphanumeric characters and allowed characters,
+    /// and correctly returns `false` for invalid strings and `true` for valid strings.
+    #[test]
+    fn test_valid_alphanumeric_name() {
+        let symbols_invalid = "`~!@#$%^&*()+=-{}|:\"<>?[]\\;',./";
+        for symbol_char in symbols_invalid.chars() {
+            assert_eq!(validate_alphanumeric_name(format!("Abc{}1098", symbol_char).as_str(), "_"), false);
+        }
+
+        assert_eq!(validate_alphanumeric_name("abD_234", "_"), true);
+    }
+
+    /// Tests that `validate_string` function correctly validates given string and parameter name,
+    /// and uses the provided error generator to generate the appropriate error for invalid strings.
+    #[test]
+    fn test_valid_string() {
+        let valid_text = "aBc_123";
+        let invalid_text = "aBc@123";
+
+        assert_eq!(validate_string(valid_text, "test1", &JoinTableErrorGenerator), Ok(()));
+        assert_eq!(validate_string(invalid_text, "test2", &JoinTableErrorGenerator),
+                   Err(JoinTableError::InputInvalidError(format!("'{}' has invalid characters. '{}' allows alphabets, numbers and under bar only.", invalid_text, "test2"))));
+    }
+}

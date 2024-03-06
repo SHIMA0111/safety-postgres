@@ -95,6 +95,77 @@ impl AppConfig {
     pub(super) fn get_values(&self) -> (&String, &String, &String, u32, &String) {
         (&self.db_username, &self.db_password, &self.db_hostname, self.db_port, &self.db_name)
     }
-
-
 }
+
+#[cfg(test)]
+mod tests {
+    use super::AppConfig;
+    use std::env;
+    use std::sync::{Arc, Mutex};
+    use lazy_static::lazy_static;
+
+    lazy_static! {
+        static ref LOCK: Arc<Mutex<()>> = Arc::new(Mutex::new(()));
+    }
+
+    /// Test if `AppConfig::new` creates an `AppConfig` object correctly when all environment variables are set
+    #[test]
+    fn test_new_app_config() {
+        let _guard = LOCK.lock().unwrap();
+
+        let db_username = "test_user";
+        let db_password = "test_password";
+        let db_hostname = "localhost";
+        let db_port = "10000";
+        let db_name = "test_db";
+
+        env::set_var("DB_USER", db_username);
+        env::set_var("DB_PASSWORD", db_password);
+        env::set_var("DB_HOST", db_hostname);
+        env::set_var("DB_PORT", db_port);
+        env::set_var("DB_NAME", db_name);
+
+        let config = AppConfig::new().unwrap();
+
+        assert_eq!(config.get_values().0.as_str(), db_username);
+        assert_eq!(config.get_values().1.as_str(), db_password);
+        assert_eq!(config.get_values().2.as_str(), db_hostname);
+        assert_eq!(config.get_values().3, 10000);
+        assert_eq!(config.get_values().4.as_str(), db_name);
+    }
+
+    /// Test if `AppConfig::new` returns an error when some required environment variables are missing
+    #[test]
+    fn test_missing_db_config() {
+        let _guard = LOCK.lock().unwrap();
+
+        env::remove_var("DB_USER");
+        let Err(e) = AppConfig::new() else { panic!() };
+        assert_eq!(e, "'username' isn't presented by environment variable. Please check your environment.");
+        env::set_var("DB_USER", "username");
+        env::remove_var("DB_PASSWORD");
+        let Err(e) = AppConfig::new() else { panic!() };
+        assert_eq!(e, "'password' isn't presented by environment variable. Please check your environment.");
+        env::set_var("DB_PASSWORD", "password");
+        env::remove_var("DB_HOST");
+        let Err(e) = AppConfig::new() else { panic!() };
+        assert_eq!(e, "'hostname' isn't presented by environment variable. Please check your environment.");
+        env::set_var("DB_HOST", "localhost");
+    }
+
+    /// Test if `AppConfig::new` provides default values when no env vars for `DB_PORT` and `DB_NAME` provided
+    #[test]
+    fn test_default_values() {
+        let _guard = LOCK.lock().unwrap();
+
+        env::remove_var("DB_PORT");
+        env::remove_var("DB_NAME");
+
+        let config = AppConfig::new().unwrap();
+
+        assert_eq!(config.db_port, 5432);
+        assert_eq!(config.db_name.as_str(), "postgres");
+    }
+}
+
+

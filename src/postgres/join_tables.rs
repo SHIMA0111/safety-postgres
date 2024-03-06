@@ -65,7 +65,7 @@ impl JoinTables {
     pub(super) fn add_join_table(&mut self, schema: &str, table_name: &str, join_columns: &[&str], destination_columns: &[&str]) -> Result<&mut Self, JoinTableError> {
         validate_string(table_name, "table_name", &JoinTableErrorGenerator)?;
         validate_string(schema, "schema", &JoinTableErrorGenerator)?;
-        let _ = Self::validate_column_collection_pare(join_columns, destination_columns)?;
+        Self::validate_column_collection_pare(join_columns, destination_columns)?;
 
         fn convert_vec(input: &[&str]) -> Vec<String> {
             input.iter().map(|str| str.to_string()).collect()
@@ -192,5 +192,102 @@ impl JoinTable {
             }
         }
         statement
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Verifies the successful addition of a `JoinTable`.
+    #[test]
+    fn test_add_join_table() {
+        let mut join_tables = JoinTables::new();
+        join_tables.add_join_table("", "users", &["id"], &["user_id"]).unwrap();
+
+        assert_eq!(join_tables.tables.len(), 1);
+        assert_eq!(join_tables.tables[0].table_name, "users");
+        assert_eq!(join_tables.tables[0].join_columns, vec!["id".to_string()]);
+        assert_eq!(join_tables.tables[0].destination_columns, vec!["user_id".to_string()]);
+    }
+
+    /// Ensures that a correct SQL INNER JOIN statement is generated.
+    #[test]
+    fn test_generate_statement_text() {
+        let mut join_tables = JoinTables::new();
+        join_tables.add_join_table("", "users", &["id"], &["user_id"]).unwrap();
+        join_tables.add_join_table("schema", "teams", &["id"], &["team_id"]).unwrap();
+
+        let stmt = join_tables.generate_statement_text("main");
+        assert!(stmt.contains("INNER JOIN users ON main.user_id = users.id INNER JOIN schema.teams ON main.team_id = schema.teams.id"));
+    }
+
+    /// Checks whether the tables collection is empty.
+    #[test]
+    fn test_is_tables_empty() {
+        let join_tables = JoinTables::new();
+
+        assert!(join_tables.is_tables_empty());
+    }
+
+    /// Validates the proper generation of a SQL query from a `JoinTable`.
+    #[test]
+    fn test_join_table_generate_statement_text() {
+        let join_table = JoinTable {
+            schema: "".to_string(),
+            table_name: "users".to_string(),
+            join_columns: vec!["id".to_string()],
+            destination_columns: vec!["user_id".to_string()],
+        };
+
+        let stmt = join_table.generate_statement_text("main".to_string());
+        assert!(stmt.contains("INNER JOIN users ON main.user_id = users.id"))
+    }
+
+    /// Tests that the tables vector is initially empty on new `JoinTables` creation.
+    #[test]
+    fn test_join_tables_empty_constructor() {
+        let join_tables = JoinTables::new();
+        assert_eq!(join_tables.tables.len(), 0);
+    }
+
+    /// Validates the error on `add_join_table` with an invalid schema name is used.
+    #[test]
+    fn test_invalid_schema_name() {
+        let mut join_tables = JoinTables::new();
+        let Err(e) = join_tables.add_join_table("schema!", "table", &["id"], &["table_id"]) else { panic!() };
+        assert_eq!(e, JoinTableError::InputInvalidError(format!("'{}' has invalid characters. '{}' allows alphabets, numbers and under bar only.", "schema!", "schema")));
+    }
+
+    /// Checks error handling when invalid characters are used in a table name.
+    #[test]
+    fn test_invalid_table_name() {
+        let mut join_tables = JoinTables::new();
+        let Err(e) = join_tables.add_join_table("", "tabl+e", &["id"], &["table_id"]) else { panic!() };
+        assert_eq!(e, JoinTableError::InputInvalidError("'tabl+e' has invalid characters. 'table_name' allows alphabets, numbers and under bar only.".to_string()));
+    }
+
+    /// Confirms error when either 'join_columns' or 'destination_columns' contains invalid characters.
+    #[test]
+    fn test_invalid_char_contains_columns() {
+        let ok_columns = vec!["id", "team", "data"];
+        let ng_columns = vec!["id", "te;am", "date"];
+
+        let mut join_tables = JoinTables::new();
+        let Err(e) = join_tables.add_join_table("", "table", &ng_columns, &ok_columns) else { panic!() };
+
+        assert_eq!(e, JoinTableError::InputInvalidError("'join_columns' includes invalid name. Please check your input.".to_string()));
+
+        let Err(e) = join_tables.add_join_table("", "table", &ok_columns, &ng_columns) else { panic!() };
+        assert_eq!(e, JoinTableError::InputInvalidError("'destination_columns' includes invalid name. Please check your input.".to_string()))
+    }
+
+    /// Ensures error when 'join_columns' and 'destination_columns' collections' number of elements don't match.
+    #[test]
+    fn test_inconsistent_number_columns() {
+        let mut join_tables = JoinTables::new();
+        let Err(e) = join_tables.add_join_table("", "table", &["id"], &["user_name", "id"]) else { panic!() };
+
+        assert_eq!(e, JoinTableError::InputInconsistentError("'join_columns' and 'destination_columns' will be join key in SQL so these should have match number of elements.".to_string()))
     }
 }

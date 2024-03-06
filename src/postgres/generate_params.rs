@@ -111,12 +111,77 @@ pub(super) fn box_param_generator(str_params: &[String]) -> Vec<Box<dyn ToSql + 
 /// ];
 ///
 /// let params_refs = params_ref_generator(&box_params);
-/// assert_eq!(params_refs.len(), 3);
-/// assert_eq!(params_refs[0], &42);
-/// assert_eq!(params_refs[1], &"hello");
-/// assert_eq!(params_refs[2], &3.14);
 /// ```
 ///
 pub(super) fn params_ref_generator<'a>(box_params: &'a[Box<dyn ToSql + Sync>]) -> Vec<&'a(dyn ToSql + Sync)> {
     box_params.iter().map(AsRef::as_ref).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Tests the box_param_generator function with various input cases of different data types.
+    /// It checks if the correct boxed values are returned.
+    #[test]
+    fn test_box_param_generator() {
+        let str_params = vec![
+            "42".to_string(),
+            "hello".to_string(),
+            "3.14".to_string(),
+            "2023-11-29".to_string(),
+            "2023-11-29T21:00:09".to_string(),
+            "21:00:09".to_string(),
+            "false".to_string()
+        ];
+
+        let box_params = box_param_generator(&str_params);
+        assert_eq!(box_params.len(), str_params.len());
+        assert_eq!(
+            format!("{:?}", box_params[0]),
+            format!("{:?}", Box::new(42) as Box<dyn ToSql + Sync>)
+        );
+        assert_eq!(
+            format!("{:?}", box_params[1]),
+            format!("{:?}", Box::new("hello") as Box<dyn ToSql + Sync>)
+        );
+        assert_eq!(
+            format!("{:?}", box_params[2]),
+            format!("{:?}", Box::new(3.14) as Box<dyn ToSql + Sync>)
+        );
+        assert_eq!(
+            format!("{:?}", box_params[3]),
+            format!("{:?}", Box::new(NaiveDate::from_str("2023-11-29").unwrap()) as Box<dyn ToSql + Sync>)
+        );
+        assert_eq!(
+            format!("{:?}", box_params[4]),
+            format!("{:?}", Box::new(NaiveDateTime::from_str("2023-11-29T21:00:09").unwrap()) as Box<dyn ToSql + Sync>)
+        );
+        assert_eq!(
+            format!("{:?}", box_params[5]),
+            format!("{:?}", Box::new(NaiveTime::from_str("21:00:09").unwrap()) as Box<dyn ToSql + Sync>)
+        );
+        assert_eq!(
+            format!("{:?}", box_params[6]),
+            format!("{:?}", Box::new(false) as Box<dyn ToSql + Sync>));
+    }
+
+    /// Tests the params_ref_generator function by using the result of the box_param_generator as input.
+    /// It checks if the correct references are returned.
+    #[test]
+    fn test_params_ref_generator() {
+        let str_params = vec![
+            "42".to_string(),
+            "hello".to_string(),
+            "3.14".to_string(),
+            "2023-11-29".to_string(),
+            "2023-11-29T21:00:09".to_string(),
+            "21:00:09".to_string(),
+            "false".to_string()
+        ];
+
+        let box_params = box_param_generator(&str_params);
+        let params_ref = params_ref_generator(&box_params);
+        assert_eq!(params_ref.len(), str_params.len());
+    }
 }

@@ -41,7 +41,7 @@ pub enum IsInJoinedTable {
 ///  - `FirstCondition`: Represents the first condition, used to start the condition chain.
 ///  - `And`: Represents the logical "AND" operator, which combines multiple conditions with a logical AND.
 ///  - `Or`: Represents the logical "OR" operator, which combines multiple conditions with a logical OR.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum LogicalOperator {
     FirstCondition,
     And,
@@ -313,5 +313,173 @@ impl Condition {
         };
 
         format!("{} {}", table_name, operator)
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::postgres::errors::ConditionError;
+    use super::{Conditions, ComparisonOperator, LogicalOperator, IsInJoinedTable};
+
+    /// Tests that conditions can be added properly and results in the correct condition text and statement.
+    #[test]
+    fn test_add_and_get_condition() {
+        let mut conditions = Conditions::new();
+        conditions.add_condition(
+            "column1",
+            "value1",
+            ComparisonOperator::Equal,
+            LogicalOperator::FirstCondition,
+            IsInJoinedTable::No).unwrap();
+        conditions.add_condition(
+            "column2",
+            "value2",
+            ComparisonOperator::Grater,
+            LogicalOperator::And,
+            IsInJoinedTable::No).unwrap();
+        conditions.add_condition(
+            "column3",
+            "value3",
+            ComparisonOperator::LowerEq,
+            LogicalOperator::Or,
+            IsInJoinedTable::Yes {
+                schema_name: "schema1".to_string(),
+                table_name: "table1".to_string()
+            }).unwrap();
+
+        let expected_statement = "WHERE column1 = $1 AND column2 > $2 OR schema1.table1.column3 <= $3";
+        let expected_text = "column1 = value1 AND column2 > value2 OR schema1.table1.column3 <= value3";
+
+        assert_eq!(conditions.get_condition_text(), expected_text);
+        assert_eq!(conditions.generate_statement_text(0), expected_statement);
+
+        let expected_values = vec!["value1".to_string(), "value2".to_string(), "value3".to_string()];
+
+        assert_eq!(conditions.get_flat_values(), expected_values);
+    }
+
+    /// Tests adding and getting conditions using string representation of operators and confirms
+    /// it results in the correct condition text and statement.
+    #[test]
+    fn test_add_get_condition_by_str() {
+        let mut conditions = Conditions::new();
+        let _ =
+            conditions.
+                add_condition_from_str(
+                    "column1",
+                    "value1",
+                    "equal",
+                    "",
+                    IsInJoinedTable::No).unwrap()
+                .add_condition_from_str(
+                    "column2",
+                    "value2",
+                    ">=",
+                    "or",
+                    IsInJoinedTable::No).unwrap();
+
+        let expected_statement = "WHERE column1 = $1 OR column2 >= $2";
+        let expected_text = "column1 = value1 OR column2 >= value2";
+
+        assert_eq!(conditions.get_condition_text().as_str(), expected_text);
+        assert_eq!(conditions.generate_statement_text(0).as_str(), expected_statement);
+
+        let expected_values = vec!["value1", "value2"];
+
+        assert_eq!(conditions.get_flat_values(), expected_values);
+    }
+
+    /// Tests providing invalid string as comparison operator results in an appropriate error.
+    #[test]
+    fn test_invalid_comparison_str_input() {
+        let mut conditions = Conditions::new();
+        let Err(e) = conditions.add_condition_from_str(
+            "column1",
+            "value1",
+            "+",
+            "",
+            IsInJoinedTable::No,
+        ) else { panic!() };
+
+        assert_eq!(e, ConditionError::InputInvalidError(format!(
+            "'comparison operator' can select symbol('=', '>', '<', '>=', '<=') or some specify string, but got {}",
+            "+")));
+    }
+
+    /// Tests providing invalid string as condition chain operator results in an appropriate error.
+    #[test]
+    fn test_invalid_chain_str_input() {
+        let mut conditions = Conditions::new();
+        let Err(e) = conditions.add_condition_from_str(
+            "column1",
+            "value1",
+            "=",
+            "test",
+            IsInJoinedTable::No,
+        ) else { panic!() };
+
+        assert_eq!(e, ConditionError::InputInvalidError(format!(
+            "'condition_chain_operator' indicates the chain operator between the previous condition and the current condition by symbols('&', '|') or specified strings, but got {}",
+            "test")));
+
+    }
+
+    /// Tests providing invalid column name results in an appropriate error.
+    #[test]
+    fn test_invalid_column() {
+        let mut conditions = Conditions::new();
+        let Err(e) = conditions.add_condition(
+            "column1;",
+            "value1",
+            ComparisonOperator::Equal,
+            LogicalOperator::FirstCondition,
+            IsInJoinedTable::No) else { panic!() };
+        assert_eq!(e,
+                   ConditionError::InputInvalidError(
+                       format!(
+                           "'{}' has invalid characters. '{}' allows alphabets, numbers and under bar only.",
+                           "column1;", "column")
+                   ));
+    }
+
+    /// Tests that the default logical operator for the first condition is "FirstCondition".
+    #[test]
+    fn test_default_value() {
+        let mut conditions = Conditions::new();
+        conditions.add_condition(
+            "column1",
+            "value1",
+            ComparisonOperator::Equal,
+            LogicalOperator::And,
+            IsInJoinedTable::No).unwrap();
+
+        assert_eq!(conditions.logics[0], LogicalOperator::FirstCondition);
+    }
+
+    /// Tests that applying "FirstCondition" more than once results in an appropriate error.
+    #[test]
+    fn test_multiple_declaration_first_condition() {
+        let mut conditions = Conditions::new();
+        conditions.add_condition(
+            "column1",
+            "value1",
+            ComparisonOperator::Equal,
+            LogicalOperator::FirstCondition,
+            IsInJoinedTable::No
+        ).unwrap();
+        let Err(e) = conditions.add_condition(
+            "column2",
+            "value2",
+            ComparisonOperator::Equal,
+            LogicalOperator::FirstCondition,
+            IsInJoinedTable::No
+        ) else { panic!() };
+
+        assert_eq!(e,
+                   ConditionError::InputInvalidError(
+                       "Already condition exists. 'FirstCondition' can be used only specifying the first condition."
+                           .to_string()
+                   ));
     }
 }
