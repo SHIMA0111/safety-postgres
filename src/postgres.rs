@@ -6,3 +6,4 @@ pub(crate) mod postgres_base;
 mod validators;
 mod generate_params;
 pub(crate) mod sql_base;
+mod interfaces;

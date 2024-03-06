@@ -1,5 +1,9 @@
 [package]
-name = "postgres"
+name = "safe-postgres"
+description = "Wrapper of tokio-postgres for executing SQL more safer out of user jurisdiction."
+keywords = ["sql", "postgres", "PostgreSQL"]
+categories = ["database"]
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 

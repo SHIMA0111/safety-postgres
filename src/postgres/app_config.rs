@@ -4,11 +4,11 @@ use crate::postgres::validators::validate_alphanumeric_name;
 ///
 /// The `AppConfig` struct holds the necessary information for connecting to the database.
 pub(crate) struct AppConfig {
-    pub(crate) db_username: String,
-    pub(crate) db_password: String,
-    pub(crate) db_hostname: String,
-    pub(crate) db_port: u32,
-    pub(crate) db_name: String,
+    db_username: String,
+    db_password: String,
+    db_hostname: String,
+    db_port: u32,
+    db_name: String,
 }
 
 impl AppConfig {
@@ -70,4 +70,31 @@ impl AppConfig {
             db_name,
         })
     }
+
+    /// Returns a tuple containing references to the values of the database connection parameters.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let config = AppConfig::new();
+    /// let (username, password, hostname, port, name) = config.get_values();
+    /// println!("Username: {}", username);
+    /// println!("Password: {}", password);
+    /// println!("Hostname: {}", hostname);
+    /// println!("Port: {}", port);
+    /// println!("Database name: {}", name);
+    /// ```
+    ///
+    /// # Return
+    ///
+    /// - `&String` - A reference to the username of the database connection.
+    /// - `&String` - A reference to the password of the database connection.
+    /// - `&String` - A reference to the hostname of the database connection.
+    /// - `u32` - The port number of the database connection.
+    /// - `&String` - A reference to the name of the database.
+    pub(super) fn get_values(&self) -> (&String, &String, &String, u32, &String) {
+        (&self.db_username, &self.db_password, &self.db_hostname, self.db_port, &self.db_name)
+    }
+
+
 }

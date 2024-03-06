@@ -2,7 +2,7 @@ use crate::postgres::errors::*;
 use crate::postgres::validators::validate_string;
 
 #[derive(Clone)]
-pub(crate) enum SqlType {
+pub(super) enum SqlType {
     Select(QueryColumns),
     Update(UpdateSets),
     Insert(InsertRecords),
@@ -14,7 +14,7 @@ trait SqlBuilder {
 }
 
 #[derive(Clone)]
-pub(crate) struct QueryColumns {
+pub(super) struct QueryColumns {
     all_columns: bool,
     columns: Vec<QueryColumn>,
 }
@@ -34,7 +34,7 @@ impl QueryColumns {
         }
     }
 
-    pub(crate) fn add_column(&mut self, schema_name: &str, table_name: &str, column: &str) -> Result<&mut Self, QueryColumnError> {
+    pub(super) fn add_column(&mut self, schema_name: &str, table_name: &str, column: &str) -> Result<&mut Self, QueryColumnError> {
         if self.all_columns {
             return Err(QueryColumnError::InputInconsistentError("'all_columns' flag is true so all columns will queried so you can't set column. Please check your input.".to_string()));
         }
@@ -82,7 +82,7 @@ impl SqlBuilder for QueryColumns {
 }
 
 #[derive(Clone)]
-pub(crate) struct UpdateSets {
+pub(super) struct UpdateSets {
     update_sets: Vec<UpdateSet>
 }
 
@@ -99,7 +99,7 @@ impl UpdateSets {
         }
     }
 
-    pub(crate) fn add_set(&mut self, column: &str, value: &str) -> Result<&mut Self, UpdateSetError> {
+    pub(super) fn add_set(&mut self, column: &str, value: &str) -> Result<&mut Self, UpdateSetError> {
         validate_string(column, "column", &UpdateSetErrorGenerator)?;
 
         let update_set = UpdateSet {
@@ -119,7 +119,7 @@ impl UpdateSets {
         flat_values
     }
 
-    pub(crate) fn get_num_values(&self) -> usize {
+    pub(super) fn get_num_values(&self) -> usize {
         self.update_sets.len()
     }
 }
@@ -147,14 +147,14 @@ struct InsertRecord {
 }
 
 #[derive(Clone)]
-pub(crate) struct InsertRecords {
+pub(super) struct InsertRecords {
     keys: Vec<String>,
     insert_records: Vec<InsertRecord>,
 }
 
 
 impl InsertRecords {
-    pub(crate) fn new(columns: &[&str]) -> Self {
+    pub(super) fn new(columns: &[&str]) -> Self {
         let keys = columns.iter().map(|column| column.to_string()).collect::<Vec<String>>();
 
         Self {
@@ -163,7 +163,7 @@ impl InsertRecords {
         }
     }
 
-    pub(crate) fn add_record(&mut self, record: &[&str]) -> Result<&mut Self, InsertValueError> {
+    pub(super) fn add_record(&mut self, record: &[&str]) -> Result<&mut Self, InsertValueError> {
         if self.insert_records.is_empty() {
             self.keys.iter().map(|key| validate_string(key.as_str(), "columns", &InsertValueErrorGenerator)).collect::<Result<_, InsertValueError>>()?;
         }

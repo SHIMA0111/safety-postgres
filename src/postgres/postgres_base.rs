@@ -9,7 +9,7 @@ use crate::postgres::join_tables::JoinTables;
 use crate::postgres::sql_base::{InsertRecords, QueryColumns, SqlType, UpdateSets};
 use crate::postgres::validators::validate_alphanumeric_name;
 
-pub(crate) struct PostgresBase {
+pub(super) struct PostgresBase {
     username: String,
     password: String,
     hostname: String,
@@ -55,7 +55,7 @@ impl PostgresBase {
     ///     Err(e) => panic!("Error creating table: {}", e),
     /// };
     /// ```
-    pub(crate) fn new(table_name: &str) -> Result<Self, PostgresBaseError> {
+    pub(super) fn new(table_name: &str) -> Result<Self, PostgresBaseError> {
         let valid_table_name;
         if !validate_alphanumeric_name(table_name, "_") {
             return Err(PostgresBaseError::InputInvalidError(format!("{} is invalid name. Please confirm the rule of the 'table_name'", table_name)));
@@ -87,15 +87,17 @@ impl PostgresBase {
             }
         };
 
-        Ok(Self {
-            username: config.db_username,
-            password: config.db_password,
-            hostname: config.db_hostname,
-            port: config.db_port,
-            dbname: config.db_name,
+        let (username, password, hostname, port, dbname) = config.get_values();
+
+        Ok(PostgresBase {
+            username: username.to_string(),
+            password: password.to_string(),
+            hostname: hostname.to_string(),
+            port,
+            dbname: dbname.to_string(),
             table_name: table_name_w_schema,
             schema_name,
-            client: None
+            client: None,
         })
     }
 
@@ -117,7 +119,7 @@ impl PostgresBase {
     /// let mut postgres = PostgresBase::new("your_table_name");
     /// let _ = postgres.connect().await?;
     /// ```
-    pub(crate) async fn connect(&mut self) -> Result<(), PGError> {
+    pub(super) async fn connect(&mut self) -> Result<(), PGError> {
         let (client, connection) = tokio_postgres::Config::new()
             .user(self.username.as_str())
             .password(self.password.as_str())
@@ -161,15 +163,15 @@ impl PostgresBase {
     ///
     /// This function can return an error if there is a problem executing the raw query.
     /// The error type is `Box<dyn std::error::Error>`.
-    pub(crate) async fn query_raw(&self, query_columns: QueryColumns) -> Result<Vec<Row>, PostgresBaseError> {
+    pub(super) async fn query_raw(&self, query_columns: QueryColumns) -> Result<Vec<Row>, PostgresBaseError> {
         self.query_inner_join_conditions(query_columns, JoinTables::new(), Conditions::new()).await
     }
 
-    pub(crate) async fn query_condition_raw(&self, query_column: QueryColumns, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
+    pub(super) async fn query_condition_raw(&self, query_column: QueryColumns, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
         self.query_inner_join_conditions(query_column, JoinTables::new(), conditions).await
     }
 
-    pub(crate) async fn query_inner_join_conditions(&self, query_columns: QueryColumns, join_tables: JoinTables, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
+    pub(super) async fn query_inner_join_conditions(&self, query_columns: QueryColumns, join_tables: JoinTables, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
         let query_statement: String = SqlType::Select(query_columns).sql_build(self.table_name.as_str());
         let mut statement_vec: Vec<String> = vec![query_statement];
 
@@ -189,7 +191,7 @@ impl PostgresBase {
         Ok(res)
     }
 
-    pub(crate) async fn insert(&self, insert_records: InsertRecords) -> Result<(), PostgresBaseError> {
+    pub(super) async fn insert(&self, insert_records: InsertRecords) -> Result<(), PostgresBaseError> {
         let params_values = insert_records.get_flat_values();
         let insert = SqlType::Insert(insert_records);
         let statement = insert.sql_build(self.table_name.as_str());
@@ -198,7 +200,7 @@ impl PostgresBase {
         Ok(())
     }
 
-    pub(crate) async fn update(&self, update_set: UpdateSets, allow_all_update: bool) -> Result<(), PostgresBaseError> {
+    pub(super) async fn update(&self, update_set: UpdateSets, allow_all_update: bool) -> Result<(), PostgresBaseError> {
         if allow_all_update {
             self.update_condition(update_set, Conditions::new()).await
         }
@@ -207,7 +209,7 @@ impl PostgresBase {
         }
     }
 
-    pub(crate) async fn update_condition(&self, update_set: UpdateSets, conditions: Conditions) -> Result<(), PostgresBaseError> {
+    pub(super) async fn update_condition(&self, update_set: UpdateSets, conditions: Conditions) -> Result<(), PostgresBaseError> {
         let set_num = update_set.get_num_values();
         let mut params_values = update_set.get_flat_values();
         let statement_base = SqlType::Update(update_set).sql_build(self.table_name.as_str());
@@ -225,7 +227,7 @@ impl PostgresBase {
         Ok(())
     }
 
-    pub(crate) async fn delete(&self, conditions: Conditions) -> Result<(), PostgresBaseError> {
+    pub(super) async fn delete(&self, conditions: Conditions) -> Result<(), PostgresBaseError> {
         if conditions.is_empty() {
             return Err(PostgresBaseError::UnsafeExecutionError("'delete' method unsupports deleting records without any condition.".to_string()))
         }
@@ -243,7 +245,7 @@ impl PostgresBase {
     }
 
     #[allow(dead_code)]
-    pub(crate) async fn set_dbname(&mut self, dbname: &str) -> Self {
+    pub(super) async fn set_dbname(&mut self, dbname: &str) -> Self {
         if !validate_alphanumeric_name(dbname, "_") {
             eprintln!("Unexpected dbname inputted so the change is rejected.");
             return self.self_generator();
@@ -253,7 +255,7 @@ impl PostgresBase {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn set_schema(&mut self, schema_name: &str) -> Self {
+    pub(super) fn set_schema(&mut self, schema_name: &str) -> Self {
         if !validate_alphanumeric_name(schema_name, "_") {
             eprintln!("Unexpected dbname inputted so the change is rejected.");
             return self.self_generator();
@@ -279,13 +281,13 @@ impl PostgresBase {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn set_port(&mut self, port: u32) -> Self {
+    pub(super) fn set_port(&mut self, port: u32) -> Self {
         self.port = port;
         self.self_generator()
     }
 
     #[allow(dead_code)]
-    pub(crate) fn get_config(&self) -> String {
+    pub(super) fn get_config(&self) -> String {
         let mut schema_name: Option<&str> = None;
 
         if self.table_name.contains(".") {

@@ -10,7 +10,7 @@ struct JoinTable {
 }
 
 #[derive(Clone)]
-pub(crate) struct JoinTables {
+pub(super) struct JoinTables {
     pub(super) tables: Vec<JoinTable>,
 }
 
@@ -21,7 +21,7 @@ impl JoinTables {
         }
     }
 
-    pub(crate) fn add_join_table(&mut self, table_name: &str, schema: &str, join_columns: &[&str], destination_columns: &[&str]) -> Result<&mut Self, JoinTableError> {
+    pub(super) fn add_join_table(&mut self, table_name: &str, schema: &str, join_columns: &[&str], destination_columns: &[&str]) -> Result<&mut Self, JoinTableError> {
         validate_string(table_name, "table_name", &JoinTableErrorGenerator)?;
         validate_string(schema, "schema", &JoinTableErrorGenerator)?;
         let _ = Self::validate_column_collection_pare(join_columns, destination_columns)?;
