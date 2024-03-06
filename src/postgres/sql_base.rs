@@ -23,7 +23,7 @@ trait SqlBuilder {
 ///
 /// ```rust
 /// let mut query_columns = QueryColumns(false);
-/// query_columns.add_column("schema_name", "table_name", "column_name");
+/// query_columns.add_column("schema_name", "table_name", "column_name")?;
 ///
 /// let query_text = query_columns.get_query_text();
 ///
@@ -80,11 +80,7 @@ impl QueryColumns {
     ///
     /// ```rust
     /// let mut query_columns = QueryColumns::new();
-    /// let _ = query_columns.add_column("", "", "id").add_column("", "", "username");
-    ///
-    /// let query_text = query_columns.get_query_text();
-    ///
-    /// assert!(query_text, "SELECT id, username FROM main_table_name");
+    /// query_columns.add_column("", "", "id")?.add_column("", "", "username");
     /// ```
     pub(super) fn add_column(&mut self, schema_name: &str, table_name: &str, column: &str) -> Result<&mut Self, QueryColumnError> {
         if self.all_columns {
@@ -136,7 +132,7 @@ impl SqlBuilder for QueryColumns {
     /// # Examples
     ///
     /// ```
-    /// let query_columns = QueryColumns(true);
+    /// let query_columns = QueryColumns::new(true);
     /// let sql = query_columns.build_sql("my_table");
     /// assert_eq!(sql, "SELECT * FROM my_table");
     /// ```
@@ -166,11 +162,31 @@ impl SqlBuilder for QueryColumns {
     }
 }
 
+/// Represents a collection of update sets.
+///
+/// Update sets are used to define the values to be updated in a database table.
+///
+/// # Example
+///
+/// ```rust
+/// let mut update_sets = UpdateSets::new();
+///
+/// update_sets.add_update_set("column1", "value1")?;
+/// update_sets.add_update_set("column2", "value2")?;
+///
+/// let update_set_text = update_sets.get_update_text();
+///
+/// assert_eq!(update_set_text, "UPDATE main_table_name SET column1 = value1, column2 = value2");
+/// ```
+///
 #[derive(Clone)]
 pub(super) struct UpdateSets {
     update_sets: Vec<UpdateSet>
 }
 
+/// Represents a single column-value pair used in an update statement.
+///
+/// This struct is used to specify the column and its corresponding value for an update operation.
 #[derive(Clone)]
 struct UpdateSet {
     column: String,
@@ -178,12 +194,34 @@ struct UpdateSet {
 }
 
 impl UpdateSets {
+    /// Creates a new instance of the `UpdateSets` struct.
     pub(crate) fn new() -> Self {
         Self {
             update_sets: Vec::new(),
         }
     }
 
+    /// Adds a set of column-value pair to the update sets of the struct.
+    ///
+    /// # Arguments
+    ///
+    /// * `column` - The name of the column to be updated.
+    /// * `value` - The new value for the column.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `UpdateSetError` if the `column` is not a valid string.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to `Self (UpdateSets)` on success.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let mut update_sets = UpdateSets::new()?;
+    /// update_sets.add_set("name", "John");
+    /// ```
     pub(super) fn add_set(&mut self, column: &str, value: &str) -> Result<&mut Self, UpdateSetError> {
         validate_string(column, "column", &UpdateSetErrorGenerator)?;
 
@@ -196,6 +234,11 @@ impl UpdateSets {
         Ok(self)
     }
 
+    /// Retrieves all the values from the update sets as flatten vector.
+    ///
+    /// # Returns
+    ///
+    /// A vector of strings containing the values.
     pub(super) fn get_flat_values(&self) -> Vec<String> {
         let mut flat_values = Vec::new();
         for update_set in &self.update_sets {
@@ -204,12 +247,43 @@ impl UpdateSets {
         flat_values
     }
 
+    /// Returns the update text for the set parameters.
+    pub fn get_update_text(&self) -> String {
+        let mut update_text = self.build_sql("main_table_name");
+        let values = self.get_flat_values();
+        for (index, value) in values.iter().enumerate() {
+            update_text = update_text.replace(&format!("${}", index + 1), value);
+        }
+
+        update_text
+    }
+
+    /// Returns the number of values in the update sets.
+    ///
+    /// # Returns
+    ///
+    /// The number of values in the update sets.
     pub(super) fn get_num_values(&self) -> usize {
         self.update_sets.len()
     }
 }
 
 impl SqlBuilder for UpdateSets {
+    /// Builds an SQL UPDATE statement with the provided table name and set values.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - The name of the table to update.
+    ///
+    /// # Returns
+    ///
+    /// Returns the generated SQL statement as a string.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let query = builder.build_sql("users");
+    /// ```
     fn build_sql(&self, table_name: &str) -> String {
         let mut sql_vec: Vec<String> = Vec::new();
 
@@ -226,19 +300,47 @@ impl SqlBuilder for UpdateSets {
     }
 }
 
-#[derive(Clone)]
-struct InsertRecord {
-    values: Vec<String>,
-}
-
+/// Represents a collection of insert records.
+///
+/// # Fields
+///
+/// - `keys`: A vector of strings representing the columns for the insert records.
+/// - `insert_records`: A vector of `InsertRecord` objects.
+///
+/// # Example
+///
+/// ```rust
+/// let mut insert_records = InsertRecords::new(["str_column1", "int_column2", "float_column3"]);
+///
+/// let record1 = vec!["value1", "2", "3.1"];
+/// let record2 = vec!["value3", "10", "0.7"];
+/// insert_records.add_insert_record(&record1)?;
+/// insert_records.add_insert_record(&record2)?;
+///
+/// let insert_query = insert_records.get_insert_query();
+///
+/// assert_eq!(insert_query,
+///     "INSERT INTO table_name (str_column1, int_column2, float_column3)
+///     VALUES ("value1", 2, 3.1), ("value3", 10, 0.7)");
+/// ```
 #[derive(Clone)]
 pub(super) struct InsertRecords {
     keys: Vec<String>,
     insert_records: Vec<InsertRecord>,
 }
 
+/// Represents the values of one record to be inserted into a table.
+#[derive(Clone)]
+struct InsertRecord {
+    values: Vec<String>,
+}
 
 impl InsertRecords {
+    /// Creates a new instance of the `Table` struct.
+    ///
+    /// # Arguments
+    ///
+    /// * `columns` - A slice of strings representing the column names to insert.
     pub(super) fn new(columns: &[&str]) -> Self {
         let keys = columns.iter().map(|column| column.to_string()).collect::<Vec<String>>();
 
@@ -248,6 +350,29 @@ impl InsertRecords {
         }
     }
 
+    /// Adds a record to insert the database.
+    ///
+    /// # Arguments
+    ///
+    /// * `record` - A slice of strings representing the values to be inserted.
+    ///
+    /// # Returns
+    ///
+    /// Returns a mutable reference to the `Self` type. Returns an error of type `InsertValueError`
+    /// if there is an error during the insertion process.
+    ///
+    /// # Errors
+    ///
+    /// Returns an `InsertValueError` if some error occurred during process.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let insert_records = InsertRecords::new(["first_name", "last_name", "age"]);
+    ///
+    /// let record = vec!["John", "Doe", "25"];
+    /// insert_records.add_record(&record);
+    /// ```
     pub(super) fn add_record(&mut self, record: &[&str]) -> Result<&mut Self, InsertValueError> {
         if self.insert_records.is_empty() {
             self.keys.iter().map(|key| validate_string(key.as_str(), "columns", &InsertValueErrorGenerator)).collect::<Result<_, InsertValueError>>()?;
@@ -265,6 +390,40 @@ impl InsertRecords {
         Ok(self)
     }
 
+    /// Retrieves the insert text for the SQL statement.
+    ///
+    /// # Returns
+    ///
+    /// The insert text for the SQL statement.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let columns = vec!["column1", "column2"];
+    /// let insert_records = InsertRecords::new(&columns);
+    ///
+    /// let record = vec!["value1", "value2"];
+    /// insert_records.add_record(&record);
+    ///
+    /// let insert_text = query.get_insert_text();
+    /// println!("Insert Text: {}", insert_text);
+    /// ```
+    pub fn get_insert_text(&self) -> String {
+        let mut insert_text = self.build_sql("main_table_name");
+        let values = self.get_flat_values();
+
+        for (index, value) in values.iter().enumerate() {
+            insert_text = insert_text.replace(&format!("${}", index + 1), value);
+        }
+
+        insert_text
+    }
+
+    /// Returns a vector of all the values from the insert records in a flattened vector.
+    ///
+    /// # Returns
+    ///
+    /// - `Vec<String>` - A vector containing all the values from the insert records.
     pub(super) fn get_flat_values(&self) -> Vec<String> {
         let mut flat_values = Vec::new();
         for record in &self.insert_records {
@@ -275,6 +434,15 @@ impl InsertRecords {
 }
 
 impl SqlBuilder for InsertRecords {
+    /// Builds an SQL statement for inserting records into a specified table.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - The name of the table to insert the records into.
+    ///
+    /// # Returns
+    ///
+    /// A string containing the SQL statement for inserting the records.
     fn build_sql(&self, table_name: &str) -> String {
         let mut sql_vec: Vec<String> = Vec::new();
 
@@ -295,6 +463,15 @@ impl SqlBuilder for InsertRecords {
 }
 
 impl SqlType {
+    /// Function to build an SQL query based on the provided SqlType enum.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - The name of the table to perform the query on.
+    ///
+    /// # Returns
+    ///
+    /// A string representing the built SQL query.
     pub(super) fn sql_build(&self, table_name: &str) -> String {
         match self {
             SqlType::Select(query_columns) => query_columns.build_sql(table_name),
