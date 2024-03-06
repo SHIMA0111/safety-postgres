@@ -9,6 +9,17 @@ use crate::postgres::join_tables::JoinTables;
 use crate::postgres::sql_base::{InsertRecords, QueryColumns, SqlType, UpdateSets};
 use crate::postgres::validators::validate_alphanumeric_name;
 
+/// Represents a connection config to a PostgreSQL database.
+///
+/// # Example
+/// ```rust
+/// let postgres = PostgresBase::new("table_name")?;
+/// postgres.connect().await?;
+///
+/// let query_columns = QueryColumns(true);
+///
+/// postgres.query_raw(query_columns).await?;
+/// ```
 pub(super) struct PostgresBase {
     username: String,
     password: String,
@@ -20,40 +31,45 @@ pub(super) struct PostgresBase {
     client: Option<Client>
 }
 
+/// Represents the type of execution.
+///
+/// This enum is used to determine the type of SQL execution to be performed.
+/// It can be either `Execute` or `Query`.
 enum ExecuteType {
     Execute,
     Query,
 }
 
+/// Represents the result of an execution.
+///
+/// This enum is used to represent the result of an SQL execution operation.
+///
+/// # Variants
+///
+/// - `Execute(u64)`: Represents the result of an execution operation that returns a single value of type `u64`.
+///
+/// - `Query(Vec<Row>)`: Represents the result of a query operation that returns multiple rows of type `Vec<Row>`.
 enum ExecuteResult {
     Execute(u64),
     Query(Vec<Row>),
 }
 
 impl PostgresBase {
-    /// Create a new instance of the `PostgresBase` struct.
+    /// Creates a new instance of `PostgresBase` for interacting with a PostgreSQL database.
     ///
     /// # Arguments
     ///
-    /// * `table_name` - A string slice that represents the name of the table you want to connect.
+    /// * `table_name` - The name of the table to interact with.
     ///
     /// # Returns
     ///
-    /// Returns a `Result` containing the new `PostgresBase` instance, or a boxed `dyn std::error::Error`.
+    /// Returns a `Result` containing the new `PostgresBase` instance if successful,
+    /// or a `PostgresBaseError` if an error occurs.
     ///
-    /// # Errors
-    ///
-    /// An error is returned if the table name is invalid. The table name should only contain alphanumeric characters.
-    ///
-    /// # Examples
-    ///
+    /// # Example
     /// ```rust
-    /// use std::error::Error;
-    ///
-    /// let table = match new("users") {
-    ///     Ok(postgres) => postgres,
-    ///     Err(e) => panic!("Error creating table: {}", e),
-    /// };
+    /// let postgres = PostgresBase::new("table_name")?;
+    /// postgres.connect().await?;
     /// ```
     pub(super) fn new(table_name: &str) -> Result<Self, PostgresBaseError> {
         let valid_table_name;
@@ -103,10 +119,6 @@ impl PostgresBase {
 
     /// Connects to a PostgreSQL database using the provided configuration.
     ///
-    /// # Arguments
-    ///
-    /// * `self` - A mutable reference to the current instance of the struct.
-    ///
     /// # Returns
     ///
     /// Returns a result indicating whether the connection was successful or an error occurred.
@@ -116,7 +128,7 @@ impl PostgresBase {
     /// # Example
     ///
     /// ```rust
-    /// let mut postgres = PostgresBase::new("your_table_name");
+    /// let mut postgres = PostgresBase::new("your_table_name")?;
     /// let _ = postgres.connect().await?;
     /// ```
     pub(super) async fn connect(&mut self) -> Result<(), PGError> {
@@ -138,39 +150,94 @@ impl PostgresBase {
         Ok(())
     }
 
-    /// Executes a raw database query and returns the resulting rows.
+    /// Executes a raw query on the database and returns the result.
     ///
-    /// ## Parameters
+    /// # Arguments
     ///
-    /// - `query_columns`: The `QueryColumns` instance including columns to query.
+    /// * `query_columns` - A `QueryColumns` struct specifying the columns to query.
     ///
-    /// ## Returns
+    /// # Returns
     ///
-    /// Returns a `Result` indicating success or failure the query. If successful, it contains
-    /// a `Vec` of `Row` objects representing the query results. If an error occurs,
-    /// it contains a `Box<dyn std::error::Error>`.
+    /// * `Ok(Vec<Row>)` - Get the values if the query was successful.
+    /// * `Err(PostgresBaseError)` - If an error occurred during the query process.
     ///
-    /// ## Examples
+    /// # Errors
+    ///
+    /// Returns a `PostgresBaseError` if there was an error executing the query.
+    ///
+    /// # Example
     ///
     /// ```rust
-    /// let query_columns = QueryColumns::new(false);
-    /// query_columns.add_column("your_schema_name (this can use empty string slice)", "your_table_name (this can use empty string slice)", "your_column_name");
-    /// let postgres = PostgresBase::new();
-    /// let res = postgres.query_raw(query_columns);
+    /// use crate::database::postgre::PostgresBaseError;
+    ///
+    /// let query_columns = QueryColumns::new();
+    /// let result = database.query_raw(query_columns);
+    ///
+    /// match result {
+    ///     Ok(rows_vec) => {
+    ///         for row in rows {
+    ///             // Process each row
+    ///         }
+    ///     },
+    ///     Err(error) => {
+    ///         // Handle the error
+    ///     }
+    /// }
     /// ```
-    ///
-    /// ## Errors
-    ///
-    /// This function can return an error if there is a problem executing the raw query.
-    /// The error type is `Box<dyn std::error::Error>`.
     pub(super) async fn query_raw(&self, query_columns: QueryColumns) -> Result<Vec<Row>, PostgresBaseError> {
         self.query_inner_join_conditions(query_columns, JoinTables::new(), Conditions::new()).await
     }
 
+    /// Queries the database for data based on the provided query column and conditions.
+    ///
+    /// # Arguments
+    ///
+    /// * `query_column` - The columns using `QueryColumns` struct to query.
+    /// * `conditions` - The conditions using `Conditions` to apply to the query.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Vec<Row>)` - Get the values if the query was successful.
+    /// * `Err(PostgresBaseError)` - If an error occurred during the query process.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `PostgresBaseError` if there was an error querying the database.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let query_column = QueryColumns::new();
+    /// let conditions = Conditions::new();
+    ///
+    /// let result = db.query_condition_raw(query_column, conditions).await?;
+    /// match result {
+    ///     Ok(rows) => {
+    ///         for row in rows {
+    ///             // Do something with the row
+    ///         }
+    ///     },
+    ///     Err(error) => {
+    ///         // Handle the error
+    ///     },
+    /// }
+    /// ```
     pub(super) async fn query_condition_raw(&self, query_column: QueryColumns, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
         self.query_inner_join_conditions(query_column, JoinTables::new(), conditions).await
     }
 
+    /// Queries the database with inner join and conditions.
+    ///
+    /// # Arguments
+    ///
+    /// * `query_columns` - The columns using `QueryColumns` struct to query.
+    /// * `join_tables` - The tables collection using `JoinTables` to join.
+    /// * `conditions` - The conditions using `Conditions` to apply to the query.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Vec<Row>)` - Get the values if the query was successful
+    /// * `Err(PostgresBaseError)` - If an error occurred during the query process.
     pub(super) async fn query_inner_join_conditions(&self, query_columns: QueryColumns, join_tables: JoinTables, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
         let query_statement: String = SqlType::Select(query_columns).sql_build(self.table_name.as_str());
         let mut statement_vec: Vec<String> = vec![query_statement];
@@ -191,6 +258,25 @@ impl PostgresBase {
         Ok(res)
     }
 
+    /// Inserts records into the database table.
+    ///
+    /// # Arguments
+    ///
+    /// * `insert_records` - An `InsertRecords` object containing the records to be inserted.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - If the records were inserted successfully.
+    /// * `Err(PostgresBaseError)` - If an error occurred during the insertion process.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let insert_records = InsertRecords::new();
+    /// insert_records.add_record(...);
+    ///
+    /// let result = db.insert(insert_records).await?;
+    /// ```
     pub(super) async fn insert(&self, insert_records: InsertRecords) -> Result<(), PostgresBaseError> {
         let params_values = insert_records.get_flat_values();
         let insert = SqlType::Insert(insert_records);
@@ -200,6 +286,28 @@ impl PostgresBase {
         Ok(())
     }
 
+    /// Updates records in the specified table based on the given update sets.
+    ///
+    /// # Arguments
+    ///
+    /// - `update_set`: The `UpdateSets` object which containing the fields to update.
+    /// - `allow_all_update`: A boolean flag indicating whether updating all records is allowed.
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(())` if the update is successful.
+    /// - `Err(PostgresBaseError)` if an error occurs during the update.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use crate::PostgresBaseError;
+    ///
+    /// let update_set = UpdateSets::new();
+    /// update_set.add_set(...)?;
+    /// let allow_all_update = true;
+    /// database.update(update_set, allow_all_update).await?;
+    /// ```
     pub(super) async fn update(&self, update_set: UpdateSets, allow_all_update: bool) -> Result<(), PostgresBaseError> {
         if allow_all_update {
             self.update_condition(update_set, Conditions::new()).await
@@ -209,6 +317,29 @@ impl PostgresBase {
         }
     }
 
+    /// Updates records in the table based on the specified update set and conditions.
+    ///
+    /// # Arguments
+    ///
+    /// * `update_set` - The `UpdateSets` specifying the columns and values to update.
+    /// * `conditions` - The `Conditions` specifying the records to update.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - If the update operation is successful.
+    /// * `Err(PostgresBaseError)` - If an error occurs during the update operation.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let update_set = UpdateSets::new();
+    /// update_set.add_set(...)?;
+    ///
+    /// let conditions = Conditions::new();
+    /// conditions.add_condition(...)?;
+    ///
+    /// database.update(update_set, conditions).await?;
+    /// ```
     pub(super) async fn update_condition(&self, update_set: UpdateSets, conditions: Conditions) -> Result<(), PostgresBaseError> {
         let set_num = update_set.get_num_values();
         let mut params_values = update_set.get_flat_values();
@@ -227,6 +358,25 @@ impl PostgresBase {
         Ok(())
     }
 
+    /// Delete records from the database table based on given conditions.
+    ///
+    /// # Arguments
+    ///
+    /// * `conditions` - The conditions used to filter the records to be deleted.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Returns this if the deletion is successful
+    /// * `PostgresBaseError` - Returns an error of type `PostgresBaseError` when deletion process failed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let conditions = Conditions::new();
+    /// conditions.add_condition(...)?;
+    ///
+    /// database.delete(conditions).await?;
+    /// ```
     pub(super) async fn delete(&self, conditions: Conditions) -> Result<(), PostgresBaseError> {
         if conditions.is_empty() {
             return Err(PostgresBaseError::UnsafeExecutionError("'delete' method unsupports deleting records without any condition.".to_string()))
@@ -244,7 +394,18 @@ impl PostgresBase {
         Ok(())
     }
 
-    #[allow(dead_code)]
+    /// Sets the name of the database.
+    ///
+    /// This method validates the given `dbname` parameter to ensure it consists only of alphanumeric characters and underscores.
+    /// If the validation fails, an error message is printed to the standard error output and the change is rejected.
+    ///
+    /// # Arguments
+    ///
+    /// * `dbname` - The new name of the database.
+    ///
+    /// # Returns
+    ///
+    /// The updated `self` object.
     pub(super) async fn set_dbname(&mut self, dbname: &str) -> Self {
         if !validate_alphanumeric_name(dbname, "_") {
             eprintln!("Unexpected dbname inputted so the change is rejected.");
@@ -254,7 +415,15 @@ impl PostgresBase {
         self.self_generator()
     }
 
-    #[allow(dead_code)]
+    /// Sets the schema for the database table.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_name` - The new name of the schema to set.
+    ///
+    /// # Returns
+    ///
+    /// The modified `Self` object.
     pub(super) fn set_schema(&mut self, schema_name: &str) -> Self {
         if !validate_alphanumeric_name(schema_name, "_") {
             eprintln!("Unexpected dbname inputted so the change is rejected.");
@@ -280,13 +449,25 @@ impl PostgresBase {
         self.self_generator()
     }
 
-    #[allow(dead_code)]
+    /// Sets the port for the postgresql.
+    ///
+    /// # Arguments
+    ///
+    /// * `port` - The new port setting for the postgresql
+    ///
+    /// # Returns
+    ///
+    /// The modified `self` object.
     pub(super) fn set_port(&mut self, port: u32) -> Self {
         self.port = port;
         self.self_generator()
     }
 
-    #[allow(dead_code)]
+    /// Get the configuration string for connecting to the PostgreSQL database.
+    ///
+    /// # Returns
+    ///
+    /// * Configuration - Representing the configuration for connecting to the database.
     pub(super) fn get_config(&self) -> String {
         let mut schema_name: Option<&str> = None;
 
@@ -302,6 +483,23 @@ impl PostgresBase {
         }
     }
 
+    /// Executes a query statement with the given parameters and returns a vector of rows as the result.
+    ///
+    /// # Arguments
+    ///
+    /// - `statement_str`: A reference to a `String` containing the query statement to be executed.
+    /// - `params`: A slice of `String` containing the parameters to be used in the query.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Vec<Row>)` - Returns vector of `Row` if the query was executed successfully.
+    /// * `Err(PostgresBaseError)` - Returns `PostgresBaseError` if an error occurred during this process.
+    ///
+    /// # Errors
+    ///
+    /// This function can return a `PostgresBaseError` in the following cases:
+    ///
+    /// - If an internal execution error occurs, an `UnexpectedError` variant of `PostgresBaseError` will be returned.
     async fn query(&self, statement_str: &String, params: &[String]) -> Result<Vec<Row>, PostgresBaseError> {
         let result = self.execute_core(statement_str, params, ExecuteType::Query).await?;
         match result {
@@ -309,6 +507,21 @@ impl PostgresBase {
             _ => return Err(PostgresBaseError::UnexpectedError("Execution internal error occurred, please contact the developer.".to_string())),        }
     }
 
+    /// Executes a database statement with parameters asynchronously.
+    ///
+    /// # Arguments
+    ///
+    /// * `statement_str` - The database statement to execute.
+    /// * `params` - The parameters to bind to the statement.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(u64)` - Returns the number of rows affected by the statement if successful
+    /// * `Err(PostgresBaseError)` - Returns an error if an unexpected error occurred
+    ///
+    /// # Errors
+    ///
+    /// Returns an `PostgresBaseError` if an unexpected error occurred while executing the statement.
     async fn execute(&self, statement_str: &String, params: &[String]) -> Result<u64, PostgresBaseError> {
         let result = self.execute_core(statement_str, params, ExecuteType::Execute).await?;
         match result {
@@ -317,6 +530,18 @@ impl PostgresBase {
         }
     }
 
+    /// Executes a PostgreSQL statement with the given parameters and return the result.
+    ///
+    /// # Arguments
+    ///
+    /// * `statement_str` - The statement string to execute.
+    /// * `params` - The parameters to bind to the statement.
+    /// * `execute_type` - The type of execution (Execute or Query).
+    ///
+    /// # Returns
+    ///
+    /// * Ok(ExecuteResult) - Returns result valiant containing the execution result
+    /// * Err(PostgresBaseError) - Returns an error if the execution failed
     async fn execute_core(&self, statement_str: &String, params: &[String], execute_type: ExecuteType) -> Result<ExecuteResult, PostgresBaseError> {
         let client = match self.client.as_ref() {
             Some(client) => client,
@@ -347,6 +572,19 @@ impl PostgresBase {
         }
     }
 
+    /// Returns a new instance of the struct `Self` with the same field values as the current instance.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - A new instance of the struct `Self` with the same field values as the current instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let instance = PostgresBase::new("table_name")?;
+    ///
+    /// let new_instance = instance.self_generator();
+    /// ```
     fn self_generator(&self) -> Self {
         Self {
             username: self.username.clone(),
