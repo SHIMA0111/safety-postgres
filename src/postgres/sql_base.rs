@@ -1,6 +1,7 @@
 use crate::postgres::errors::*;
 use crate::postgres::validators::validate_string;
 
+/// Represents the different types of SQL statements.
 #[derive(Clone)]
 pub(super) enum SqlType {
     Select(QueryColumns),
@@ -9,16 +10,32 @@ pub(super) enum SqlType {
     Delete,
 }
 
+/// Trait for building SQL statements.
+///
+/// This trait defines a method for building SQL statements based on a given table name.
 trait SqlBuilder {
     fn build_sql(&self, table_name: &str) -> String;
 }
 
+/// Represents a collection of query columns.
+///
+/// # Example
+///
+/// ```rust
+/// let mut query_columns = QueryColumns(false);
+/// query_columns.add_column("schema_name", "table_name", "column_name");
+///
+/// let query_text = query_columns.get_query_text();
+///
+/// assert_eq!(query_text, "SELECT schema_name.table_name.column_name FROM main_table_name");
+/// ```
 #[derive(Clone)]
 pub(super) struct QueryColumns {
     all_columns: bool,
     columns: Vec<QueryColumn>,
 }
 
+/// Represents a single query column.
 #[derive(Clone)]
 struct QueryColumn {
     schema_name: String,
@@ -27,6 +44,12 @@ struct QueryColumn {
 }
 
 impl QueryColumns {
+    /// Creates a new instance of `QueryColumns` struct.
+    ///
+    /// # Arguments
+    ///
+    /// * `all_columns` - A boolean value indicating whether all columns should be selected.
+    ///
     pub(crate) fn new(all_columns: bool) -> Self {
         Self {
             all_columns,
@@ -34,6 +57,35 @@ impl QueryColumns {
         }
     }
 
+    /// Adds a query selected column to the query.
+    ///
+    /// # Arguments
+    ///
+    /// * `schema_name` - The name of the schema (input "" if there is no schema name or in the same table).
+    /// * `table_name` - The name of the table (input "" if there is no table name or in the same table).
+    /// * `column` - The name of the column.
+    ///
+    /// # Returns
+    ///
+    /// Returns a mutable reference to `Self` (the query builder) on success, or a `QueryColumnError` on failure.
+    ///
+    /// # Errors
+    ///
+    /// An error is returned if:
+    /// * The `all_columns` flag is set to true, indicating that all columns will be queried,
+    /// so setting a specific column is not allowed.
+    /// * The `schema_name`, `table_name`, or `column` is an invalid string.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let mut query_columns = QueryColumns::new();
+    /// let _ = query_columns.add_column("", "", "id").add_column("", "", "username");
+    ///
+    /// let query_text = query_columns.get_query_text();
+    ///
+    /// assert!(query_text, "SELECT id, username FROM main_table_name");
+    /// ```
     pub(super) fn add_column(&mut self, schema_name: &str, table_name: &str, column: &str) -> Result<&mut Self, QueryColumnError> {
         if self.all_columns {
             return Err(QueryColumnError::InputInconsistentError("'all_columns' flag is true so all columns will queried so you can't set column. Please check your input.".to_string()));
@@ -52,9 +104,42 @@ impl QueryColumns {
         self.columns.push(query_column);
         Ok(self)
     }
+
+    /// Retrieves the query text for the current instance.
+    ///
+    /// # Returns
+    ///
+    /// A `String` representing the query text.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// let query_text = obj.get_query_text();
+    /// println!("Query Text: {}", query_text);
+    /// ```
+    pub fn get_query_text(&self) -> String {
+        self.build_sql("main_table_name")
+    }
 }
 
 impl SqlBuilder for QueryColumns {
+    /// Builds an SQL query based on the given parameters.
+    ///
+    /// # Arguments
+    ///
+    /// * `table_name` - The name of the table to query.
+    ///
+    /// # Returns
+    ///
+    /// A string representing the SQL query.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let query_columns = QueryColumns(true);
+    /// let sql = query_columns.build_sql("my_table");
+    /// assert_eq!(sql, "SELECT * FROM my_table");
+    /// ```
     fn build_sql(&self, table_name: &str) -> String {
         let mut sql_vec: Vec<String> = Vec::new();
         sql_vec.push("SELECT".to_string());

@@ -3,10 +3,17 @@ use std::error::Error;
 use std::fmt::{Debug, Formatter};
 
 
+/// A trait for generating custom error values.
+///
+/// This trait defines a method `generate_error` that takes
+/// a string message and returns an error of generic type `E`.
+/// Implementations of this trait can be used to generate
+/// custom error values for error handling.
 pub(super) trait ErrorGenerator<E> {
     fn generate_error(&self, msg: String) -> E;
 }
 
+/// Represents an error that occurs during joining of tables.
 #[derive(Debug)]
 pub(crate) enum JoinTableError {
     InputInconsistentError(String),
@@ -24,6 +31,8 @@ impl fmt::Display for JoinTableError {
 
 impl Error for JoinTableError {}
 
+/// The `JoinTableErrorGenerator` struct is used internally in a specific module
+/// to generate join table errors.
 pub(super) struct JoinTableErrorGenerator;
 
 impl ErrorGenerator<JoinTableError> for JoinTableErrorGenerator {
@@ -32,6 +41,7 @@ impl ErrorGenerator<JoinTableError> for JoinTableErrorGenerator {
     }
 }
 
+/// Represents an error that occurs when there is an invalid condition.
 #[derive(Debug)]
 pub(crate) enum ConditionError {
     InputInvalidError(String),
@@ -47,6 +57,8 @@ impl fmt::Display for ConditionError {
 
 impl Error for ConditionError {}
 
+/// The `ConditionErrorGenerator` struct is used internally in a specific module
+/// to generate condition errors.
 pub(super) struct ConditionErrorGenerator;
 
 impl ErrorGenerator<ConditionError> for ConditionErrorGenerator {
@@ -55,6 +67,7 @@ impl ErrorGenerator<ConditionError> for ConditionErrorGenerator {
     }
 }
 
+/// Represents an error that occurs during handling of query columns.
 #[derive(Debug)]
 pub(crate) enum QueryColumnError {
     InputInvalidError(String),
@@ -72,6 +85,8 @@ impl fmt::Display for QueryColumnError {
 
 impl Error for QueryColumnError {}
 
+/// The `QueryColumnErrorGenerator` struct is used internally in a specific module
+/// to generate query column errors.
 pub(super) struct QueryColumnErrorGenerator;
 
 impl ErrorGenerator<QueryColumnError> for QueryColumnErrorGenerator {
@@ -80,6 +95,7 @@ impl ErrorGenerator<QueryColumnError> for QueryColumnErrorGenerator {
     }
 }
 
+/// Represents an error that occurs when creating an update set.
 #[derive(Debug)]
 pub(crate) enum UpdateSetError {
     InputInvalidError(String),
@@ -95,6 +111,8 @@ impl fmt::Display for UpdateSetError {
 
 impl Error for UpdateSetError {}
 
+/// The `UpdateSetErrorGenerator` struct is used internally in a specific module
+/// to generate update set errors.
 pub(super) struct UpdateSetErrorGenerator;
 impl ErrorGenerator<UpdateSetError> for UpdateSetErrorGenerator {
     fn generate_error(&self, msg: String) -> UpdateSetError {
@@ -102,6 +120,7 @@ impl ErrorGenerator<UpdateSetError> for UpdateSetErrorGenerator {
     }
 }
 
+/// Represents an error that occurs during the insertion of a value.
 #[derive(Debug)]
 pub(crate) enum InsertValueError {
     InputInvalidError(String),
@@ -119,6 +138,8 @@ impl fmt::Display for InsertValueError {
 
 impl Error for InsertValueError {}
 
+/// The `InsertValueErrorGenerator` struct is used internally in a specific module
+/// to generate insert value errors.
 pub(super) struct InsertValueErrorGenerator;
 
 impl ErrorGenerator<InsertValueError> for InsertValueErrorGenerator {
@@ -127,6 +148,7 @@ impl ErrorGenerator<InsertValueError> for InsertValueErrorGenerator {
     }
 }
 
+/// Represents an error that can occur in the PostgreSQL interface.
 #[derive(Debug)]
 pub(crate) enum PostgresBaseError {
     InputInvalidError(String),
