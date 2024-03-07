@@ -15,7 +15,7 @@ pub(super) trait ErrorGenerator<E> {
 
 /// Represents an error that occurs during joining of tables.
 #[derive(Debug, PartialEq)]
-pub(crate) enum JoinTableError {
+pub enum JoinTableError {
     InputInconsistentError(String),
     InputInvalidError(String),
 }
@@ -43,7 +43,7 @@ impl ErrorGenerator<JoinTableError> for JoinTableErrorGenerator {
 
 /// Represents an error that occurs when there is an invalid condition.
 #[derive(Debug, PartialEq)]
-pub(crate) enum ConditionError {
+pub enum ConditionError {
     InputInvalidError(String),
 }
 
@@ -69,7 +69,7 @@ impl ErrorGenerator<ConditionError> for ConditionErrorGenerator {
 
 /// Represents an error that occurs during handling of query columns.
 #[derive(Debug, PartialEq)]
-pub(crate) enum QueryColumnError {
+pub enum QueryColumnError {
     InputInvalidError(String),
     InputInconsistentError(String),
 }
@@ -97,7 +97,7 @@ impl ErrorGenerator<QueryColumnError> for QueryColumnErrorGenerator {
 
 /// Represents an error that occurs when creating an update set.
 #[derive(Debug, PartialEq)]
-pub(crate) enum UpdateSetError {
+pub enum UpdateSetError {
     InputInvalidError(String),
 }
 
@@ -122,7 +122,7 @@ impl ErrorGenerator<UpdateSetError> for UpdateSetErrorGenerator {
 
 /// Represents an error that occurs during the insertion of a value.
 #[derive(Debug, PartialEq)]
-pub(crate) enum InsertValueError {
+pub enum InsertValueError {
     InputInvalidError(String),
     InputInconsistentError(String),
 }
@@ -150,7 +150,7 @@ impl ErrorGenerator<InsertValueError> for InsertValueErrorGenerator {
 
 /// Represents an error that can occur in the PostgreSQL interface.
 #[derive(Debug, PartialEq)]
-pub(crate) enum PostgresBaseError {
+pub enum PostgresBaseError {
     InputInvalidError(String),
     ConfigNotDefinedError(String),
     UnsafeExecutionError(String),

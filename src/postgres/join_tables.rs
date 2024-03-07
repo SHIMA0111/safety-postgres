@@ -14,26 +14,30 @@ struct JoinTable {
 ///
 /// # Example
 /// ```rust
-/// let join_tables = JoinTables::new();
+/// use safety_postgres::postgres::join_tables::JoinTables;
 ///
-/// join_tables.add_join_table("schema_name"(there is no schema name, input ""),
-///     "table_name", &vec!["column1_from_joined_table", ...],
-///     &vec!["column1_in_main_table", ...])
+/// let mut join_tables = JoinTables::new();
+///
+/// join_tables.add_join_table(
+///     "",
+///     "joined_table",
+///     &vec!["joined_table_c1"],
+///     &vec!["main_table_c1"]).expect("add joined table failed");
 ///
 /// let join_text = join_tables.get_joined_text();
-/// assert_eq!(join_text,
-/// "INNER JOIN main_table_name ON
-/// main_table_name.column1_in_main_table = schema_name.table_name.column1_from_joined_table
-/// AND ...");
+/// let expected_text =
+///     "INNER JOIN joined_table ON main_table_name.main_table_c1 = joined_table.joined_table_c1";
+///
+/// assert_eq!(join_text, expected_text.to_string());
 /// ```
 #[derive(Clone)]
-pub(super) struct JoinTables {
+pub struct JoinTables {
     pub(super) tables: Vec<JoinTable>,
 }
 
 impl JoinTables {
     /// Create a new instance of JoinTables.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             tables: Vec::new(),
         }
@@ -55,14 +59,16 @@ impl JoinTables {
     /// # Examples
     ///
     /// ```
+    /// use safety_postgres::postgres::join_tables::JoinTables;
+    ///
     /// let mut join_tables = JoinTables::new();
     ///
-    /// join_tables.add_join_table("public", "users", &["id"], &["user_id"])?;
-    /// let joined_text = join_tables.get_joined_text()
+    /// join_tables.add_join_table("public", "users", &["id"], &["user_id"]).expect("adding join table failed");
+    /// let joined_text = join_tables.get_joined_text();
     ///
-    /// assert_eq!(joined_text, "INNER JOIN main_table_name ON main_table_name.user_id = public.users.id");
+    /// assert_eq!(joined_text, "INNER JOIN public.users ON main_table_name.user_id = public.users.id");
     /// ```
-    pub(super) fn add_join_table(&mut self, schema: &str, table_name: &str, join_columns: &[&str], destination_columns: &[&str]) -> Result<&mut Self, JoinTableError> {
+    pub fn add_join_table(&mut self, schema: &str, table_name: &str, join_columns: &[&str], destination_columns: &[&str]) -> Result<&mut Self, JoinTableError> {
         validate_string(table_name, "table_name", &JoinTableErrorGenerator)?;
         validate_string(schema, "schema", &JoinTableErrorGenerator)?;
         Self::validate_column_collection_pare(join_columns, destination_columns)?;
@@ -108,8 +114,11 @@ impl JoinTables {
     /// # Examples
     ///
     /// ```
-    /// let obj = JoinTables::new();
-    /// obj.add_table("", "category", &["id"], &["cid"]);
+    /// use safety_postgres::postgres::join_tables::JoinTables;
+    ///
+    /// let mut obj = JoinTables::new();
+    /// obj.add_join_table("", "category", &["id"], &["cid"])
+    ///     .expect("adding join table failed");
     /// let joined_text = obj.get_joined_text();
     /// println!("Joined Text: {}", joined_text);
     /// // This will display:
@@ -128,7 +137,7 @@ impl JoinTables {
     /// # Returns
     ///
     /// Returns `true` if the tables collection is empty, `false` otherwise.
-    pub(super) fn is_tables_empty(&self) -> bool {
+    pub fn is_tables_empty(&self) -> bool {
         self.tables.is_empty()
     }
 

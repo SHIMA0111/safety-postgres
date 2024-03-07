@@ -10,16 +10,6 @@ use crate::postgres::errors::ErrorGenerator;
 /// # Returns
 ///
 /// Returns `true` if the string is valid, otherwise `false`.
-///
-/// # Examples
-///
-/// ```
-/// let is_valid = validate_alphanumeric_name("Abc_123", "_");
-/// assert_eq!(is_valid, true);
-///
-/// let is_valid = validate_alphanumeric_name("Hello@123", "_");
-/// assert_eq!(is_valid, false);
-/// ```
 pub(super) fn validate_alphanumeric_name(s: &str, allow_chars: &str) -> bool {
     s.chars().all(|char| char.is_alphanumeric() || allow_chars.contains(char))
 }

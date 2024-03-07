@@ -67,26 +67,49 @@ struct Condition {
 ///
 /// # Example
 /// ```rust
+/// use safety_postgres::postgres::conditions::ComparisonOperator::{Equal, Lower};
+/// use safety_postgres::postgres::conditions::Conditions;
+/// use safety_postgres::postgres::conditions::IsInJoinedTable::{No, Yes};
+/// use safety_postgres::postgres::conditions::LogicalOperator::{And, FirstCondition};
+///
 /// let mut conditions = Conditions::new();
 ///
-/// conditions.add_condition("column_name1", "condition_value1", ConditionOperator::Equal, LogicalOperator::FirstCondition, IsInJoinedTable::No)?;
-/// conditions.add_condition("column_name2", "condition_value2", ConditionOperator::Lower, LogicalOperator::And, IsInJoinedTable::Yes("schema_name", "table_name"))?;
+/// conditions.add_condition("column1", "condition1", Equal, FirstCondition, No).expect("add condition failed");
+/// conditions.add_condition("column2", "condition2", Lower, And, Yes{
+///     schema_name: "schema_name".to_string(), table_name: "table_name".to_string()
+/// }).expect("add condition failed");
 ///
-/// assert_eq!(conditions.get_condition_text(), "column1 = value1 AND schema_name.table_name.column2 < value2")
+/// assert_eq!(
+///     conditions.get_condition_text(),
+///     "column1 = condition1 AND schema_name.table_name.column2 < condition2")
 ///
 /// ```
 /// And you can specify the condition more intuitive using
 /// `Conditions.add_condition_from_str(column, value, condition_operator, condition_chain_operator, is_joined_table_condition)` method.
 ///
 /// ```rust
+/// use safety_postgres::postgres::conditions::{Conditions, IsInJoinedTable};
+///
 /// let mut conditions = Conditions::new();
 ///
-/// conditions.add_condition_from_str("column_name1", "condition_value1", "eq", "", IsInJoinedTable::No)?;
-/// conditions.add_condition_from_str("column_name2", "condition_value2", ">=", "or", IsInJoinedTable::Yes("schema_name", "table_name"))?;
+/// conditions.add_condition_from_str(
+///     "column1",
+///     "condition1",
+///     "eq",
+///     "", IsInJoinedTable::No).expect("add failed");
+/// conditions.add_condition_from_str(
+///     "column2",
+///     "condition2",
+///     ">=",
+///     "or",
+///     IsInJoinedTable::Yes{
+///         schema_name: "schema_name".to_string(), table_name: "table_name".to_string()
+///     }).expect("add failed");
 ///
-/// assert_eq!(conditions.get_condition_text(), "column1 = value1 OR schema_name.table_name.column2 >= value2")
+/// assert_eq!(
+///     conditions.get_condition_text(),
+///     "column1 = condition1 OR schema_name.table_name.column2 >= condition2")
 /// ```
-///
 #[derive(Clone)]
 pub struct Conditions {
     logics: Vec<LogicalOperator>,
@@ -129,9 +152,16 @@ impl Conditions {
     /// # Examples
     ///
     /// ```
+    /// use safety_postgres::postgres::conditions::Conditions;
+    /// use safety_postgres::postgres::conditions::IsInJoinedTable::No;
+    ///
     /// let mut conditions = Conditions::new();
-    /// Conditions.add_condition_from_str("name", "John", "=", "first", IsInJoinedTable::No)?;
-    /// Conditions.add_condition_from_str("age", "40", "le", "or", IsInJoinedTable::No)?;
+    /// conditions
+    ///     .add_condition_from_str("name", "John", "=", "first", No)
+    ///     .expect("adding condition failed");
+    /// conditions
+    ///     .add_condition_from_str("age", "40", "le", "or", No)
+    ///     .expect("adding condition failed");
     ///
     /// assert_eq!(conditions.get_condition_text(), "name = John OR age <= 40")
     /// ```
@@ -171,22 +201,25 @@ impl Conditions {
     /// # Examples
     ///
     /// ```
+    /// use safety_postgres::postgres::conditions::Conditions;
+    /// use safety_postgres::postgres::conditions::{ComparisonOperator, LogicalOperator, IsInJoinedTable};
+    ///
     /// let mut conditions = Conditions::new();
     ///
     /// let _ = conditions.add_condition(
     ///     "name",
     ///     "John",
-    ///     ComparisonOperator::Equals,
+    ///     ComparisonOperator::Equal,
     ///     LogicalOperator::FirstCondition,
-    ///     IsInJoinedTable::No)?
+    ///     IsInJoinedTable::No).expect("add condition failed")
     ///     .add_condition(
     ///     "age",
     ///     "40",
-    ///     ComparisonOperator::LowerEqual,
+    ///     ComparisonOperator::LowerEq,
     ///     LogicalOperator::Or,
-    ///     IsInJoinedTable::No)?;
+    ///     IsInJoinedTable::No).expect("add condition failed");
     ///
-    /// assert!(conditions.get_condition_text(), "name = John OR age <= 40");
+    /// assert_eq!(conditions.get_condition_text(), "name = John OR age <= 40");
     /// ```
     pub fn add_condition(&mut self, column: &str, value: &str, comparison: ComparisonOperator, condition_chain: LogicalOperator, is_joined_table_condition: IsInJoinedTable) -> Result<&mut Self, ConditionError> {
         validate_string(column, "column", &ConditionErrorGenerator)?;
@@ -241,13 +274,15 @@ impl Conditions {
     /// # Example
     ///
     /// ```
-    /// let conditions = Conditions::new();
-    /// Conditions.add_condition_from_str("name", "John", "=", "first", IsInJoinedTable::No)?;
-    /// Conditions.add_condition_from_str("age", "40", "le", "or", IsInJoinedTable::No)?;
+    /// use safety_postgres::postgres::conditions::{Conditions, IsInJoinedTable};
     ///
-    /// let statement_text = query.generate_statement_text(0);
+    /// let mut conditions = Conditions::new();
+    /// conditions.add_condition_from_str("name", "John", "=", "first", IsInJoinedTable::No).expect("add condition failed");
+    /// conditions.add_condition_from_str("age", "40", "le", "or", IsInJoinedTable::No).expect("add condition failed");
     ///
-    /// assert_eq!(conditions.get_condition_text(), "WHERE name = $1 OR age <= 40");
+    /// let statement_text = conditions.get_condition_text();
+    ///
+    /// assert_eq!(conditions.get_condition_text(), "name = John OR age <= 40");
     /// ```
     pub(super) fn generate_statement_text(&self, start_index: usize) -> String {
         let mut statement_texts: Vec<String> = Vec::new();

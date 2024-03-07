@@ -22,15 +22,17 @@ trait SqlBuilder {
 /// # Example
 ///
 /// ```rust
-/// let mut query_columns = QueryColumns(false);
-/// query_columns.add_column("schema_name", "table_name", "column_name")?;
+/// use safety_postgres::postgres::sql_base::QueryColumns;
+///
+/// let mut query_columns = QueryColumns::new(false);
+/// query_columns.add_column("schema_name", "table_name", "column_name").unwrap();
 ///
 /// let query_text = query_columns.get_query_text();
 ///
 /// assert_eq!(query_text, "SELECT schema_name.table_name.column_name FROM main_table_name");
 /// ```
 #[derive(Clone)]
-pub(super) struct QueryColumns {
+pub struct QueryColumns {
     all_columns: bool,
     columns: Vec<QueryColumn>,
 }
@@ -50,7 +52,7 @@ impl QueryColumns {
     ///
     /// * `all_columns` - A boolean value indicating whether all columns should be selected.
     ///
-    pub(crate) fn new(all_columns: bool) -> Self {
+    pub fn new(all_columns: bool) -> Self {
         Self {
             all_columns,
             columns: Vec::new(),
@@ -79,10 +81,12 @@ impl QueryColumns {
     /// # Example
     ///
     /// ```rust
-    /// let mut query_columns = QueryColumns::new();
-    /// query_columns.add_column("", "", "id")?.add_column("", "", "username");
+    /// use safety_postgres::postgres::sql_base::QueryColumns;
+    ///
+    /// let mut query_columns = QueryColumns::new(false);
+    /// query_columns.add_column("", "", "id").unwrap().add_column("", "", "username").unwrap();
     /// ```
-    pub(super) fn add_column(&mut self, schema_name: &str, table_name: &str, column: &str) -> Result<&mut Self, QueryColumnError> {
+    pub fn add_column(&mut self, schema_name: &str, table_name: &str, column: &str) -> Result<&mut Self, QueryColumnError> {
         if self.all_columns {
             return Err(QueryColumnError::InputInconsistentError("'all_columns' flag is true so all columns will queried so you can't set column. Please check your input.".to_string()));
         }
@@ -110,6 +114,9 @@ impl QueryColumns {
     /// # Example
     ///
     /// ```rust
+    /// use safety_postgres::postgres::sql_base::QueryColumns;
+    ///
+    /// let obj = QueryColumns::new(true);
     /// let query_text = obj.get_query_text();
     /// println!("Query Text: {}", query_text);
     /// ```
@@ -128,14 +135,6 @@ impl SqlBuilder for QueryColumns {
     /// # Returns
     ///
     /// A string representing the SQL query.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let query_columns = QueryColumns::new(true);
-    /// let sql = query_columns.build_sql("my_table");
-    /// assert_eq!(sql, "SELECT * FROM my_table");
-    /// ```
     fn build_sql(&self, table_name: &str) -> String {
         let mut sql_vec: Vec<String> = Vec::new();
         sql_vec.push("SELECT".to_string());
@@ -169,10 +168,12 @@ impl SqlBuilder for QueryColumns {
 /// # Example
 ///
 /// ```rust
+/// use safety_postgres::postgres::sql_base::UpdateSets;
+///
 /// let mut update_sets = UpdateSets::new();
 ///
-/// update_sets.add_update_set("column1", "value1")?;
-/// update_sets.add_update_set("column2", "value2")?;
+/// update_sets.add_set("column1", "value1").expect("adding update set failed");
+/// update_sets.add_set("column2", "value2").expect("adding update set failed");
 ///
 /// let update_set_text = update_sets.get_update_text();
 ///
@@ -180,7 +181,7 @@ impl SqlBuilder for QueryColumns {
 /// ```
 ///
 #[derive(Clone)]
-pub(super) struct UpdateSets {
+pub struct UpdateSets {
     update_sets: Vec<UpdateSet>
 }
 
@@ -195,7 +196,7 @@ struct UpdateSet {
 
 impl UpdateSets {
     /// Creates a new instance of the `UpdateSets` struct.
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             update_sets: Vec::new(),
         }
@@ -219,10 +220,12 @@ impl UpdateSets {
     /// # Example
     ///
     /// ```rust
-    /// let mut update_sets = UpdateSets::new()?;
-    /// update_sets.add_set("name", "John");
+    /// use safety_postgres::postgres::sql_base::UpdateSets;
+    ///
+    /// let mut update_sets = UpdateSets::new();
+    /// update_sets.add_set("name", "John").expect("adding update set failed");
     /// ```
-    pub(super) fn add_set(&mut self, column: &str, value: &str) -> Result<&mut Self, UpdateSetError> {
+    pub fn add_set(&mut self, column: &str, value: &str) -> Result<&mut Self, UpdateSetError> {
         validate_string(column, "column", &UpdateSetErrorGenerator)?;
 
         let update_set = UpdateSet {
@@ -263,7 +266,7 @@ impl UpdateSets {
     /// # Returns
     ///
     /// The number of values in the update sets.
-    pub(super) fn get_num_values(&self) -> usize {
+    pub fn get_num_values(&self) -> usize {
         self.update_sets.len()
     }
 }
@@ -278,12 +281,6 @@ impl SqlBuilder for UpdateSets {
     /// # Returns
     ///
     /// Returns the generated SQL statement as a string.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// let query = builder.build_sql("users");
-    /// ```
     fn build_sql(&self, table_name: &str) -> String {
         let mut sql_vec: Vec<String> = Vec::new();
 
@@ -310,21 +307,24 @@ impl SqlBuilder for UpdateSets {
 /// # Example
 ///
 /// ```rust
-/// let mut insert_records = InsertRecords::new(["str_column1", "int_column2", "float_column3"]);
+/// use safety_postgres::postgres::sql_base::InsertRecords;
+///
+/// let mut insert_records = InsertRecords::new(&["str_column1", "int_column2", "float_column3"]);
 ///
 /// let record1 = vec!["value1", "2", "3.1"];
 /// let record2 = vec!["value3", "10", "0.7"];
-/// insert_records.add_insert_record(&record1)?;
-/// insert_records.add_insert_record(&record2)?;
+/// insert_records.add_record(&record1).expect("adding insert record failed");
+/// insert_records.add_record(&record2).expect("adding insert record failed");
 ///
-/// let insert_query = insert_records.get_insert_query();
+/// let insert_query = insert_records.get_insert_text();
 ///
-/// assert_eq!(insert_query,
-///     "INSERT INTO table_name (str_column1, int_column2, float_column3)
-///     VALUES ("value1", 2, 3.1), ("value3", 10, 0.7)");
+/// assert_eq!(
+///     insert_query,
+///     "INSERT INTO main_table_name (str_column1, int_column2, float_column3) VALUES (value1, 2, 3.1), (value3, 10, 0.7)"
+/// );
 /// ```
 #[derive(Clone)]
-pub(super) struct InsertRecords {
+pub struct InsertRecords {
     keys: Vec<String>,
     insert_records: Vec<InsertRecord>,
 }
@@ -341,7 +341,7 @@ impl InsertRecords {
     /// # Arguments
     ///
     /// * `columns` - A slice of strings representing the column names to insert.
-    pub(super) fn new(columns: &[&str]) -> Self {
+    pub fn new(columns: &[&str]) -> Self {
         let keys = columns.iter().map(|column| column.to_string()).collect::<Vec<String>>();
 
         Self {
@@ -368,12 +368,14 @@ impl InsertRecords {
     /// # Examples
     ///
     /// ```rust
-    /// let insert_records = InsertRecords::new(["first_name", "last_name", "age"]);
+    /// use safety_postgres::postgres::sql_base::InsertRecords;
+    ///
+    /// let mut insert_records = InsertRecords::new(&["first_name", "last_name", "age"]);
     ///
     /// let record = vec!["John", "Doe", "25"];
-    /// insert_records.add_record(&record);
+    /// insert_records.add_record(&record).unwrap();
     /// ```
-    pub(super) fn add_record(&mut self, record: &[&str]) -> Result<&mut Self, InsertValueError> {
+    pub fn add_record(&mut self, record: &[&str]) -> Result<&mut Self, InsertValueError> {
         if self.insert_records.is_empty() {
             self.keys.iter().map(|key| validate_string(key.as_str(), "columns", &InsertValueErrorGenerator)).collect::<Result<_, InsertValueError>>()?;
         }
@@ -399,13 +401,15 @@ impl InsertRecords {
     /// # Example
     ///
     /// ```
+    /// use safety_postgres::postgres::sql_base::InsertRecords;
+    ///
     /// let columns = vec!["column1", "column2"];
-    /// let insert_records = InsertRecords::new(&columns);
+    /// let mut insert_records = InsertRecords::new(&columns);
     ///
     /// let record = vec!["value1", "value2"];
-    /// insert_records.add_record(&record);
+    /// insert_records.add_record(&record).unwrap();
     ///
-    /// let insert_text = query.get_insert_text();
+    /// let insert_text = insert_records.get_insert_text();
     /// println!("Insert Text: {}", insert_text);
     /// ```
     pub fn get_insert_text(&self) -> String {

@@ -13,14 +13,20 @@ use crate::postgres::validators::validate_alphanumeric_name;
 ///
 /// # Example
 /// ```rust
-/// let postgres = PostgresBase::new("table_name")?;
-/// postgres.connect().await?;
+/// use safety_postgres::postgres::postgres_base::PostgresBase;
+/// use safety_postgres::postgres::sql_base::QueryColumns;
 ///
-/// let query_columns = QueryColumns(true);
+/// async fn postgres_query() {
+///     let mut postgres = PostgresBase::new("table_name")
+///         .expect("postgres base init failed");
+///     postgres.connect().await.expect("connect failed");
 ///
-/// postgres.query_raw(query_columns).await?;
+///     let query_columns = QueryColumns::new(true);
+///
+///     postgres.query_raw(query_columns).await.expect("query failed");
+/// }
 /// ```
-pub(super) struct PostgresBase {
+pub struct PostgresBase {
     username: String,
     password: String,
     hostname: String,
@@ -68,10 +74,14 @@ impl PostgresBase {
     ///
     /// # Example
     /// ```rust
-    /// let postgres = PostgresBase::new("table_name")?;
-    /// postgres.connect().await?;
+    /// use safety_postgres::postgres::postgres_base::PostgresBase;
+    /// # std::env::set_var("DB_USER", "username");
+    /// # std::env::set_var("DB_PASSWORD", "password");
+    /// # std::env::set_var("DB_HOST", "localhost");
+    ///
+    /// let mut postgres = PostgresBase::new("table_name").expect("PostgresBase init failed");
     /// ```
-    pub(super) fn new(table_name: &str) -> Result<Self, PostgresBaseError> {
+    pub fn new(table_name: &str) -> Result<Self, PostgresBaseError> {
         let valid_table_name;
         if !validate_alphanumeric_name(table_name, "_") {
             return Err(PostgresBaseError::InputInvalidError(format!("{} is invalid name. Please confirm the rule of the 'table_name'", table_name)));
@@ -128,10 +138,14 @@ impl PostgresBase {
     /// # Example
     ///
     /// ```rust
-    /// let mut postgres = PostgresBase::new("your_table_name")?;
-    /// let _ = postgres.connect().await?;
+    /// use safety_postgres::postgres::postgres_base::PostgresBase;
+    ///
+    /// async fn postgres_connect() {
+    ///     let mut postgres = PostgresBase::new("your_table_name").expect("PostgresBase struct return error");
+    ///     let _ = postgres.connect().await.expect("connect failed");
+    /// }
     /// ```
-    pub(super) async fn connect(&mut self) -> Result<(), PGError> {
+    pub async fn connect(&mut self) -> Result<(), PGError> {
         let (client, connection) = tokio_postgres::Config::new()
             .user(self.username.as_str())
             .password(self.password.as_str())
@@ -164,27 +178,7 @@ impl PostgresBase {
     /// # Errors
     ///
     /// Returns a `PostgresBaseError` if there was an error executing the query.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use crate::database::postgre::PostgresBaseError;
-    ///
-    /// let query_columns = QueryColumns::new();
-    /// let result = database.query_raw(query_columns);
-    ///
-    /// match result {
-    ///     Ok(rows_vec) => {
-    ///         for row in rows {
-    ///             // Process each row
-    ///         }
-    ///     },
-    ///     Err(error) => {
-    ///         // Handle the error
-    ///     }
-    /// }
-    /// ```
-    pub(super) async fn query_raw(&self, query_columns: QueryColumns) -> Result<Vec<Row>, PostgresBaseError> {
+    pub async fn query_raw(&self, query_columns: QueryColumns) -> Result<Vec<Row>, PostgresBaseError> {
         self.query_inner_join_conditions(query_columns, JoinTables::new(), Conditions::new()).await
     }
 
@@ -203,26 +197,7 @@ impl PostgresBase {
     /// # Errors
     ///
     /// Returns a `PostgresBaseError` if there was an error querying the database.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let query_column = QueryColumns::new();
-    /// let conditions = Conditions::new();
-    ///
-    /// let result = db.query_condition_raw(query_column, conditions).await?;
-    /// match result {
-    ///     Ok(rows) => {
-    ///         for row in rows {
-    ///             // Do something with the row
-    ///         }
-    ///     },
-    ///     Err(error) => {
-    ///         // Handle the error
-    ///     },
-    /// }
-    /// ```
-    pub(super) async fn query_condition_raw(&self, query_column: QueryColumns, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
+    pub async fn query_condition_raw(&self, query_column: QueryColumns, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
         self.query_inner_join_conditions(query_column, JoinTables::new(), conditions).await
     }
 
@@ -238,7 +213,41 @@ impl PostgresBase {
     ///
     /// * `Ok(Vec<Row>)` - Get the values if the query was successful
     /// * `Err(PostgresBaseError)` - If an error occurred during the query process.
-    pub(super) async fn query_inner_join_conditions(&self, query_columns: QueryColumns, join_tables: JoinTables, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use safety_postgres::postgres::conditions::Conditions;
+    /// use safety_postgres::postgres::join_tables::JoinTables;
+    /// use safety_postgres::postgres::postgres_base::PostgresBase;
+    /// use safety_postgres::postgres::sql_base::QueryColumns;
+    ///
+    /// async fn postgres_query() {
+    ///     let mut db = PostgresBase::new("table_name").unwrap();
+    ///     db.connect().await.expect("connection failed");
+    ///
+    ///     let query_column = QueryColumns::new(true);
+    ///     let join_tables = JoinTables::new();
+    ///     let conditions = Conditions::new();
+    ///
+    ///     /**
+    ///     * Your code....
+    ///     */
+    ///
+    ///     let result = db.query_condition_raw(query_column, conditions).await;
+    ///     match result {
+    ///         Ok(rows) => {
+    ///             for row in rows {
+    ///                 // Do something with the row
+    ///             }
+    ///         }
+    ///         Err(error) => {
+    ///             // Handle the error
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    pub async fn query_inner_join_conditions(&self, query_columns: QueryColumns, join_tables: JoinTables, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
         let query_statement: String = SqlType::Select(query_columns).sql_build(self.table_name.as_str());
         let mut statement_vec: Vec<String> = vec![query_statement];
 
@@ -272,12 +281,19 @@ impl PostgresBase {
     /// # Examples
     ///
     /// ```
-    /// let insert_records = InsertRecords::new();
-    /// insert_records.add_record(...);
+    /// use safety_postgres::postgres::postgres_base::PostgresBase;
+    /// use safety_postgres::postgres::sql_base::InsertRecords;
     ///
-    /// let result = db.insert(insert_records).await?;
+    /// async fn postgres_insert() {
+    ///     let mut db = PostgresBase::new("my_table").expect("db struct init failed");
+    ///     db.connect().await.expect("connection failed");
+    ///     let mut insert_records = InsertRecords::new(&["column1", "column2"]);
+    ///     insert_records.add_record(&["value1", "value2"]).expect("add record failed");
+    ///
+    ///     let result = db.insert(insert_records).await.expect("insert failed");
+    /// }
     /// ```
-    pub(super) async fn insert(&self, insert_records: InsertRecords) -> Result<(), PostgresBaseError> {
+    pub async fn insert(&self, insert_records: InsertRecords) -> Result<(), PostgresBaseError> {
         let params_values = insert_records.get_flat_values();
         let insert = SqlType::Insert(insert_records);
         let statement = insert.sql_build(self.table_name.as_str());
@@ -297,18 +313,7 @@ impl PostgresBase {
     ///
     /// - `Ok(())` if the update is successful.
     /// - `Err(PostgresBaseError)` if an error occurs during the update.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use crate::PostgresBaseError;
-    ///
-    /// let update_set = UpdateSets::new();
-    /// update_set.add_set(...)?;
-    /// let allow_all_update = true;
-    /// database.update(update_set, allow_all_update).await?;
-    /// ```
-    pub(super) async fn update(&self, update_set: UpdateSets, allow_all_update: bool) -> Result<(), PostgresBaseError> {
+    pub async fn update(&self, update_set: UpdateSets, allow_all_update: bool) -> Result<(), PostgresBaseError> {
         if allow_all_update {
             self.update_condition(update_set, Conditions::new()).await
         }
@@ -332,15 +337,30 @@ impl PostgresBase {
     /// # Example
     ///
     /// ```rust
-    /// let update_set = UpdateSets::new();
-    /// update_set.add_set(...)?;
+    /// use safety_postgres::postgres::conditions::{Conditions, IsInJoinedTable};
+    /// use safety_postgres::postgres::postgres_base::PostgresBase;
+    /// use safety_postgres::postgres::sql_base::UpdateSets;
     ///
-    /// let conditions = Conditions::new();
-    /// conditions.add_condition(...)?;
+    /// async fn postgres_update() {
+    ///     let mut database = PostgresBase::new("my_table").expect("postgres base init failed");
+    ///     database.connect().await.expect("connection failed");
     ///
-    /// database.update(update_set, conditions).await?;
+    ///     let mut update_set = UpdateSets::new();
+    ///     update_set.add_set("column1", "value1").unwrap();
+    ///
+    ///     let mut conditions = Conditions::new();
+    ///     conditions.add_condition_from_str(
+    ///         "column1",
+    ///         "value1",
+    ///         "eq",
+    ///         "",
+    ///         IsInJoinedTable::No)
+    ///         .expect("adding condition failed");
+    ///
+    ///     database.update_condition(update_set, conditions).await.expect("update failed");
+    /// }
     /// ```
-    pub(super) async fn update_condition(&self, update_set: UpdateSets, conditions: Conditions) -> Result<(), PostgresBaseError> {
+    pub async fn update_condition(&self, update_set: UpdateSets, conditions: Conditions) -> Result<(), PostgresBaseError> {
         let set_num = update_set.get_num_values();
         let mut params_values = update_set.get_flat_values();
         let statement_base = SqlType::Update(update_set).sql_build(self.table_name.as_str());
@@ -372,12 +392,27 @@ impl PostgresBase {
     /// # Examples
     ///
     /// ```
-    /// let conditions = Conditions::new();
-    /// conditions.add_condition(...)?;
+    /// use safety_postgres::postgres::conditions::ComparisonOperator::Grater;
+    /// use safety_postgres::postgres::conditions::{Conditions, IsInJoinedTable};
+    /// use safety_postgres::postgres::conditions::LogicalOperator::FirstCondition;
+    /// use safety_postgres::postgres::postgres_base::PostgresBase;
     ///
-    /// database.delete(conditions).await?;
+    /// async fn postgres_delete() {
+    ///     let mut database = PostgresBase::new("my_table").expect("db init failed");
+    ///     database.connect().await.expect("connecting failed");
+    ///
+    ///     let mut conditions = Conditions::new();
+    ///     conditions.add_condition(
+    ///         "column1",
+    ///         "value1",
+    ///         Grater,
+    ///         FirstCondition,
+    ///         IsInJoinedTable::No).expect("adding condition failed");
+    ///
+    ///     database.delete(conditions).await.expect("delete failed");
+    /// }
     /// ```
-    pub(super) async fn delete(&self, conditions: Conditions) -> Result<(), PostgresBaseError> {
+    pub async fn delete(&self, conditions: Conditions) -> Result<(), PostgresBaseError> {
         if conditions.is_empty() {
             return Err(PostgresBaseError::UnsafeExecutionError("'delete' method unsupports deleting records without any condition.".to_string()))
         }
@@ -406,7 +441,7 @@ impl PostgresBase {
     /// # Returns
     ///
     /// The updated `self` object.
-    pub(super) async fn set_dbname(&mut self, dbname: &str) -> Self {
+    pub fn set_dbname(&mut self, dbname: &str) -> Self {
         if !validate_alphanumeric_name(dbname, "_") {
             eprintln!("Unexpected dbname inputted so the change is rejected.");
             return self.self_generator();
@@ -424,7 +459,7 @@ impl PostgresBase {
     /// # Returns
     ///
     /// The modified `Self` object.
-    pub(super) fn set_schema(&mut self, schema_name: &str) -> Self {
+    pub fn set_schema(&mut self, schema_name: &str) -> Self {
         if !validate_alphanumeric_name(schema_name, "_") {
             eprintln!("Unexpected dbname inputted so the change is rejected.");
             return self.self_generator();
@@ -458,7 +493,7 @@ impl PostgresBase {
     /// # Returns
     ///
     /// The modified `self` object.
-    pub(super) fn set_port(&mut self, port: u32) -> Self {
+    pub fn set_port(&mut self, port: u32) -> Self {
         self.port = port;
         self.self_generator()
     }
@@ -468,7 +503,7 @@ impl PostgresBase {
     /// # Returns
     ///
     /// * Configuration - Representing the configuration for connecting to the database.
-    pub(super) fn get_config(&self) -> String {
+    pub fn get_config(&self) -> String {
         let mut schema_name: Option<&str> = None;
 
         if self.table_name.contains(".") {
@@ -577,14 +612,6 @@ impl PostgresBase {
     /// # Returns
     ///
     /// * `Self` - A new instance of the struct `Self` with the same field values as the current instance.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// let instance = PostgresBase::new("table_name")?;
-    ///
-    /// let new_instance = instance.self_generator();
-    /// ```
     fn self_generator(&self) -> Self {
         Self {
             username: self.username.clone(),

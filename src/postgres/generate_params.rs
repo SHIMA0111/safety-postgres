@@ -42,13 +42,6 @@ enum Param {
 /// # Returns
 ///
 /// A vector of boxed trait objects (`Box<dyn ToSql + Sync>`) containing the parsed parameters.
-///
-/// # Examples
-///
-/// ```rust
-/// let params = ["1", "Hello", "3.1", "false"]
-/// let box_params = box_params_generator(&params)
-/// ```
 pub(super) fn box_param_generator(str_params: &[String]) -> Vec<Box<dyn ToSql + Sync>> {
     let mut params: Vec<Param> = Vec::new();
     for str_param in str_params {
@@ -100,19 +93,6 @@ pub(super) fn box_param_generator(str_params: &[String]) -> Vec<Box<dyn ToSql + 
 /// # Returns
 ///
 /// A new vector containing references to the boxed parameters.
-///
-/// # Example
-///
-/// ```rust
-/// let box_params: Vec<Box<dyn ToSql + Sync>> = vec![
-///     Box::new(42),
-///     Box::new("hello"),
-///     Box::new(3.14),
-/// ];
-///
-/// let params_refs = params_ref_generator(&box_params);
-/// ```
-///
 pub(super) fn params_ref_generator<'a>(box_params: &'a[Box<dyn ToSql + Sync>]) -> Vec<&'a(dyn ToSql + Sync)> {
     box_params.iter().map(AsRef::as_ref).collect()
 }
