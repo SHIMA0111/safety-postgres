@@ -441,13 +441,13 @@ impl PostgresBase {
     /// # Returns
     ///
     /// The updated `self` object.
-    pub fn set_dbname(&mut self, dbname: &str) -> Self {
+    pub fn set_dbname(&mut self, dbname: &str) -> &mut Self {
         if !validate_alphanumeric_name(dbname, "_") {
             eprintln!("Unexpected dbname inputted so the change is rejected.");
-            return self.self_generator();
+            return self;
         }
         self.dbname = dbname.to_string();
-        self.self_generator()
+        self
     }
 
     /// Sets the schema for the database table.
@@ -459,10 +459,10 @@ impl PostgresBase {
     /// # Returns
     ///
     /// The modified `Self` object.
-    pub fn set_schema(&mut self, schema_name: &str) -> Self {
+    pub fn set_schema(&mut self, schema_name: &str) -> &mut Self {
         if !validate_alphanumeric_name(schema_name, "_") {
             eprintln!("Unexpected dbname inputted so the change is rejected.");
-            return self.self_generator();
+            return self;
         }
 
         let table_name: String;
@@ -481,7 +481,7 @@ impl PostgresBase {
             self.table_name = format!("{}.{}", schema_name, table_name);
         }
         self.schema_name = schema_name.to_string();
-        self.self_generator()
+        self
     }
 
     /// Sets the port for the postgresql.
@@ -493,9 +493,9 @@ impl PostgresBase {
     /// # Returns
     ///
     /// The modified `self` object.
-    pub fn set_port(&mut self, port: u32) -> Self {
+    pub fn set_port(&mut self, port: u32) -> &mut Self {
         self.port = port;
-        self.self_generator()
+        self
     }
 
     /// Get the configuration string for connecting to the PostgreSQL database.
@@ -606,22 +606,67 @@ impl PostgresBase {
             }
         }
     }
+}
 
-    /// Returns a new instance of the struct `Self` with the same field values as the current instance.
-    ///
-    /// # Returns
-    ///
-    /// * `Self` - A new instance of the struct `Self` with the same field values as the current instance.
-    fn self_generator(&self) -> Self {
-        Self {
-            username: self.username.clone(),
-            password: self.password.clone(),
-            hostname: self.hostname.clone(),
-            port: self.port,
-            dbname: self.dbname.clone(),
-            table_name: self.table_name.clone(),
-            schema_name: self.schema_name.clone(),
-            client: None
-        }
+#[cfg(test)]
+mod tests {
+    use crate::postgres::errors::PostgresBaseError;
+    use crate::postgres::postgres_base::PostgresBase;
+
+    #[test]
+    fn test_set_and_get_connect_conf() {
+        std::env::set_var("DB_USER", "username");
+        std::env::set_var("DB_PASSWORD", "password");
+        std::env::set_var("DB_HOST", "localhost");
+
+        let mut postgres = PostgresBase::new("test_table").unwrap();
+
+        let config = postgres.get_config();
+
+        assert_eq!(config, "postgresql://username:password@localhost:5432/postgres");
+
+        postgres.set_dbname("test");
+        let config = postgres.get_config();
+
+        assert_eq!(config, "postgresql://username:password@localhost:5432/test");
+
+        postgres.set_port(12345);
+        let config = postgres.get_config();
+
+        assert_eq!(config, "postgresql://username:password@localhost:12345/test");
+
+        postgres.set_schema("schema");
+        let config = postgres.get_config();
+
+        assert_eq!(config, "postgresql://username:password@localhost:12345/test?options=--search_path=schema");
+    }
+
+    #[test]
+    fn test_new_get_invalid_value() {
+        std::env::set_var("DB_USER", "username");
+        std::env::set_var("DB_PASSWORD", "password");
+        std::env::set_var("DB_HOST", "localhost");
+
+        let Err(e) = PostgresBase::new("tab;le") else { panic!() };
+        assert_eq!(e, PostgresBaseError::InputInvalidError(format!("{} is invalid name. Please confirm the rule of the 'table_name'", "tab;le")));
+    }
+
+    #[test]
+    fn test_set_invalid_value() {
+        std::env::set_var("DB_USER", "username");
+        std::env::set_var("DB_PASSWORD", "password");
+        std::env::set_var("DB_HOST", "localhost");
+
+        let mut postgres = PostgresBase::new("table").unwrap();
+
+        postgres.set_dbname("db;Name");
+        let config = postgres.get_config();
+
+        assert_eq!(config, "postgresql://username:password@localhost:5432/postgres");
+
+        postgres.set_schema("sch;ma");
+        let config = postgres.get_config();
+
+        assert_eq!(config, "postgresql://username:password@localhost:5432/postgres");
     }
 }
