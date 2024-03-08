@@ -1,4 +1,4 @@
-use crate::postgres::validators::validate_alphanumeric_name;
+use crate::access::validators::validate_alphanumeric_name;
 
 /// Represents the configuration for the application.
 ///

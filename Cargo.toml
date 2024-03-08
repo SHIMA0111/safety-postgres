@@ -21,3 +21,5 @@ chrono = "0.4"
 
 [dev-dependencies]
 lazy_static = "1"
+testcontainers = "0.15"
+futures = "0.3"

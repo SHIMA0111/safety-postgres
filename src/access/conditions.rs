@@ -1,5 +1,6 @@
-use crate::postgres::errors::{ConditionError, ConditionErrorGenerator};
-use crate::postgres::validators::validate_string;
+use crate::access::conditions::IsInJoinedTable::Yes;
+use crate::access::errors::{ConditionError, ConditionErrorGenerator};
+use crate::access::validators::validate_string;
 
 /// Provides the available comparison operators for standardizing input for the `Conditions.add_condition()` method.
 ///
@@ -21,7 +22,7 @@ pub enum ComparisonOperator {
 /// Represents whether the column is from a joined table or not.
 ///
 /// The available variants are:
-///  - `Yes`: Represents that the column is from a joined table.
+///  - `Yes`: Represents that the column is from a joined tables.
 ///    It contains the following fields:
 ///      - `schema_name`: The name of the schema of the joined table which has the condition column (if applicable).
 ///      - `table_name`: The name of the joined table which has the condition column.
@@ -67,10 +68,10 @@ struct Condition {
 ///
 /// # Example
 /// ```rust
-/// use safety_postgres::postgres::conditions::ComparisonOperator::{Equal, Lower};
-/// use safety_postgres::postgres::conditions::Conditions;
-/// use safety_postgres::postgres::conditions::IsInJoinedTable::{No, Yes};
-/// use safety_postgres::postgres::conditions::LogicalOperator::{And, FirstCondition};
+/// use safety_postgres::access::conditions::ComparisonOperator::{Equal, Lower};
+/// use safety_postgres::access::conditions::Conditions;
+/// use safety_postgres::access::conditions::IsInJoinedTable::{No, Yes};
+/// use safety_postgres::access::conditions::LogicalOperator::{And, FirstCondition};
 ///
 /// let mut conditions = Conditions::new();
 ///
@@ -88,7 +89,7 @@ struct Condition {
 /// `Conditions.add_condition_from_str(column, value, condition_operator, condition_chain_operator, is_joined_table_condition)` method.
 ///
 /// ```rust
-/// use safety_postgres::postgres::conditions::{Conditions, IsInJoinedTable};
+/// use safety_postgres::access::conditions::{Conditions, IsInJoinedTable};
 ///
 /// let mut conditions = Conditions::new();
 ///
@@ -152,8 +153,8 @@ impl Conditions {
     /// # Examples
     ///
     /// ```
-    /// use safety_postgres::postgres::conditions::Conditions;
-    /// use safety_postgres::postgres::conditions::IsInJoinedTable::No;
+    /// use safety_postgres::access::conditions::Conditions;
+    /// use safety_postgres::access::conditions::IsInJoinedTable::No;
     ///
     /// let mut conditions = Conditions::new();
     /// conditions
@@ -201,8 +202,8 @@ impl Conditions {
     /// # Examples
     ///
     /// ```
-    /// use safety_postgres::postgres::conditions::Conditions;
-    /// use safety_postgres::postgres::conditions::{ComparisonOperator, LogicalOperator, IsInJoinedTable};
+    /// use safety_postgres::access::conditions::Conditions;
+    /// use safety_postgres::access::conditions::{ComparisonOperator, LogicalOperator, IsInJoinedTable};
     ///
     /// let mut conditions = Conditions::new();
     ///
@@ -236,6 +237,18 @@ impl Conditions {
                 eprintln!("The first condition should have 'FirstCondition' as 'condition_chain'. Automatically converted.");
                 validated_condition_chain = LogicalOperator::FirstCondition;
             }
+        }
+
+        match &is_joined_table_condition {
+            Yes {schema_name, table_name} => {
+                if !schema_name.is_empty() && table_name.is_empty() {
+                    return Err(
+                        ConditionError::InputInvalidError(
+                            "`table_name` must be specified when `schema_name` name is specified".to_string()
+                        ))
+                }
+            },
+            IsInJoinedTable::No => {}
         }
 
         let condition = Condition {
@@ -274,7 +287,7 @@ impl Conditions {
     /// # Example
     ///
     /// ```
-    /// use safety_postgres::postgres::conditions::{Conditions, IsInJoinedTable};
+    /// use safety_postgres::access::conditions::{Conditions, IsInJoinedTable};
     ///
     /// let mut conditions = Conditions::new();
     /// conditions.add_condition_from_str("name", "John", "=", "first", IsInJoinedTable::No).expect("add condition failed");
@@ -336,7 +349,17 @@ impl Condition {
     /// Generates one part of the condition by the set condition.
     fn generate_statement_text(&self) -> String {
         let table_name = match &self.is_joined_table_condition {
-            IsInJoinedTable::Yes{ schema_name, table_name } => format!("{}.{}.{}", schema_name, table_name, self.key),
+            Yes{ schema_name, table_name } => {
+                if schema_name.is_empty() & table_name.is_empty() {
+                    self.key.to_string()
+                }
+                else if schema_name.is_empty() {
+                    format!("{}.{}", table_name, self.key)
+                }
+                else {
+                    format!("{}.{}.{}", schema_name, table_name, self.key)
+                }
+            },
             IsInJoinedTable::No => self.key.to_string(),
         };
         let operator = match self.operator {
@@ -354,7 +377,7 @@ impl Condition {
 
 #[cfg(test)]
 mod tests {
-    use crate::postgres::errors::ConditionError;
+    use crate::access::errors::ConditionError;
     use super::{Conditions, ComparisonOperator, LogicalOperator, IsInJoinedTable};
 
     /// Tests that conditions can be added properly and results in the correct condition text and statement.

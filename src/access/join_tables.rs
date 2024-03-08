@@ -1,5 +1,5 @@
-use crate::postgres::errors::{JoinTableError, JoinTableErrorGenerator};
-use crate::postgres::validators::{validate_alphanumeric_name, validate_string};
+use crate::access::errors::{JoinTableError, JoinTableErrorGenerator};
+use crate::access::validators::{validate_alphanumeric_name, validate_string};
 
 /// Represents a join table in a database.
 #[derive(Clone)]
@@ -14,7 +14,7 @@ struct JoinTable {
 ///
 /// # Example
 /// ```rust
-/// use safety_postgres::postgres::join_tables::JoinTables;
+/// use safety_postgres::access::join_tables::JoinTables;
 ///
 /// let mut join_tables = JoinTables::new();
 ///
@@ -59,7 +59,7 @@ impl JoinTables {
     /// # Examples
     ///
     /// ```
-    /// use safety_postgres::postgres::join_tables::JoinTables;
+    /// use safety_postgres::access::join_tables::JoinTables;
     ///
     /// let mut join_tables = JoinTables::new();
     ///
@@ -114,7 +114,7 @@ impl JoinTables {
     /// # Examples
     ///
     /// ```
-    /// use safety_postgres::postgres::join_tables::JoinTables;
+    /// use safety_postgres::access::join_tables::JoinTables;
     ///
     /// let mut obj = JoinTables::new();
     /// obj.add_join_table("", "category", &["id"], &["cid"])
