@@ -1,4 +1,4 @@
-[!NOTE]  
+[!NOTE]
 This project is under the development for releasing an initial library crate!
 
 ## SafetyPostgres
