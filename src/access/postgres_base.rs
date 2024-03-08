@@ -168,7 +168,7 @@ impl PostgresBase {
     ///
     /// # Arguments
     ///
-    /// * `query_columns` - A `QueryColumns` struct specifying the columns to query.
+    /// * `query_columns` - A `QueryColumns` struct reference specifying the columns to query.
     ///
     /// # Returns
     ///
@@ -188,8 +188,8 @@ impl PostgresBase {
     ///
     /// # Arguments
     ///
-    /// * `query_column` - The columns using `QueryColumns` struct to query.
-    /// * `conditions` - The conditions using `Conditions` to apply to the query.
+    /// * `query_column` - The columns using reference of the `QueryColumns` struct to query.
+    /// * `conditions` - The conditions using reference of the `Conditions` to apply to the query.
     ///
     /// # Returns
     ///
@@ -208,9 +208,9 @@ impl PostgresBase {
     ///
     /// # Arguments
     ///
-    /// * `query_columns` - The columns using `QueryColumns` struct to query.
-    /// * `join_tables` - The tables collection using `JoinTables` to join.
-    /// * `conditions` - The conditions using `Conditions` to apply to the query.
+    /// * `query_columns` - The columns using reference of the `QueryColumns` struct to query.
+    /// * `join_tables` - The tables collection using reference of the `JoinTables` to join.
+    /// * `conditions` - The conditions using reference of the `Conditions` to apply to the query.
     ///
     /// # Returns
     ///
@@ -274,7 +274,7 @@ impl PostgresBase {
     ///
     /// # Arguments
     ///
-    /// * `insert_records` - An `InsertRecords` object containing the records to be inserted.
+    /// * `insert_records` - An `InsertRecords` object reference containing the records to be inserted.
     ///
     /// # Returns
     ///
@@ -309,7 +309,7 @@ impl PostgresBase {
     ///
     /// # Arguments
     ///
-    /// - `update_set`: The `UpdateSets` object which containing the fields to update.
+    /// - `update_set`: An `UpdateSets` object reference which containing the fields to update.
     /// - `allow_all_update`: A boolean flag indicating whether updating all records is allowed.
     ///
     /// # Returns
@@ -330,8 +330,8 @@ impl PostgresBase {
     ///
     /// # Arguments
     ///
-    /// * `update_set` - The `UpdateSets` specifying the columns and values to update.
-    /// * `conditions` - The `Conditions` specifying the records to update.
+    /// * `update_set` - The `UpdateSets` reference specifying the columns and values to update.
+    /// * `conditions` - The `Conditions` reference specifying the records to update.
     ///
     /// # Returns
     ///
@@ -386,7 +386,7 @@ impl PostgresBase {
     ///
     /// # Arguments
     ///
-    /// * `conditions` - The conditions used to filter the records to be deleted.
+    /// * `conditions` - The reference of the conditions used to filter the records to be deleted.
     ///
     /// # Returns
     ///
