@@ -3,10 +3,10 @@ use crate::access::validators::validate_string;
 
 /// Represents the different types of SQL statements.
 #[derive(Clone)]
-pub(super) enum SqlType {
-    Select(QueryColumns),
-    Update(UpdateSets),
-    Insert(InsertRecords),
+pub(super) enum SqlType <'a> {
+    Select(&'a QueryColumns),
+    Update(&'a UpdateSets),
+    Insert(&'a InsertRecords),
     Delete,
 }
 
@@ -466,7 +466,7 @@ impl SqlBuilder for InsertRecords {
 
 }
 
-impl SqlType {
+impl SqlType<'_> {
     /// Function to build an SQL query based on the provided SqlType enum.
     ///
     /// # Arguments

@@ -85,23 +85,22 @@ mod tests_curd {
         postgres.set_schema("test_schema");
         postgres.connect().await.unwrap();
 
-        let query_columns = QueryColumns::new(true);
-        let query_result = postgres.query_raw(query_columns).await.unwrap();
+        let query_columns_true = QueryColumns::new(true);
+        let query_result = postgres.query_raw(&query_columns_true).await.unwrap();
 
         assert_eq!(query_result.len(), 4);
         assert_eq!(query_result[0].len(), 10);
 
-        let mut query_columns = QueryColumns::new(false);
-        query_columns.add_column("", "", "id").unwrap();
-        query_columns.add_column("", "", "username").unwrap();
+        let mut query_columns_false = QueryColumns::new(false);
+        query_columns_false.add_column("", "", "id").unwrap();
+        query_columns_false.add_column("", "", "username").unwrap();
         let mut conditions = Conditions::new();
         conditions.add_condition_from_str("id", "2", "lt", "", IsInJoinedTable::No).unwrap();
-        let query_result = postgres.query_condition_raw(query_columns, conditions).await.unwrap();
+        let query_result = postgres.query_condition_raw(&query_columns_false, &conditions).await.unwrap();
 
         assert_eq!(query_result.len(), 1);
         assert_eq!(query_result[0].len(), 2);
 
-        let query_columns = QueryColumns::new(true);
         let mut joined_tables = JoinTables::new();
         joined_tables.add_join_table("test_schema", "records", &["user_id"], &["id"]).unwrap();
 
@@ -113,7 +112,7 @@ mod tests_curd {
         ).unwrap();
 
         let query_result = postgres.query_inner_join_conditions(
-            query_columns, joined_tables, conditions
+            &query_columns_true, &joined_tables, &conditions
         ).await.unwrap();
 
         assert_eq!(query_result.len(), 10);
@@ -134,8 +133,7 @@ mod tests_curd {
         postgres.connect().await.unwrap();
 
         let query_columns = QueryColumns::new(true);
-        let base_records = postgres.query_raw(query_columns).await.unwrap();
-
+        let base_records = postgres.query_raw(&query_columns).await.unwrap();
         assert_eq!(base_records.len(), 16);
 
         let record_columns = vec!["user_id", "record_date", "subcategory_id", "work_time", "message_comment"];
@@ -143,15 +141,12 @@ mod tests_curd {
         let record = vec!["2", "2023-09-28", "2", "3.8", "inserted_record"];
         insert_records.add_record(&record).unwrap();
 
-        let _ = postgres.insert(insert_records).await.unwrap();
+        let _ = postgres.insert(&insert_records).await.unwrap();
+        let after_query = postgres.query_raw(&query_columns);
 
-        let query_columns = QueryColumns::new(true);
-        let after_query = postgres.query_raw(query_columns);
-
-        let query_columns = QueryColumns::new(true);
         let mut conditions = Conditions::new();
         conditions.add_condition_from_str("id", "17", "eq", "", No).unwrap();
-        let inserted_query = postgres.query_condition_raw(query_columns, conditions);
+        let inserted_query = postgres.query_condition_raw(&query_columns, &conditions);
 
         let (after_records, inserted_records) = futures::join!(after_query, inserted_query);
 
@@ -198,7 +193,7 @@ mod tests_curd {
         let mut conditions = Conditions::new();
         conditions.add_condition_from_str("id", "1", "eq", "", No).unwrap();
 
-        let original_records = postgres.query_condition_raw(query_column, conditions).await.unwrap();
+        let original_records = postgres.query_condition_raw(&query_column, &conditions).await.unwrap();
         let origin_record = &original_records[0];
 
         let origin_work_time: f32 = origin_record.get("work_time");
@@ -206,24 +201,13 @@ mod tests_curd {
 
         let mut update_set = UpdateSets::new();
         update_set.add_set("work_time", "2.9").unwrap();
-        let mut conditions = Conditions::new();
-        conditions.add_condition_from_str("id", "1", "=", "", No).unwrap();
+        postgres.update_condition(&update_set, &conditions).await.unwrap();
 
-        postgres.update_condition(update_set, conditions).await.unwrap();
-
-        let mut query_column = QueryColumns::new(false);
-        query_column.add_column("", "", "work_time").unwrap();
-
-        let mut conditions = Conditions::new();
-        conditions.add_condition_from_str("id", "1", "eq", "", No).unwrap();
-
-        let updated_records = postgres.query_condition_raw(query_column, conditions).await.unwrap();
+        let updated_records = postgres.query_condition_raw(&query_column, &conditions).await.unwrap();
         assert_eq!(updated_records.len(), 1);
 
         let updated_record = &updated_records[0];
-
         let updated_work_time: f32 = updated_record.get("work_time");
-
         assert_eq!(updated_work_time, 2.9);
     }
 
@@ -240,19 +224,15 @@ mod tests_curd {
         postgres.set_schema("test_schema");
         postgres.connect().await.unwrap();
 
-        let original_records = postgres.query_raw(
-            QueryColumns::new(true)
-        ).await.unwrap();
-
+        let query_column = QueryColumns::new(true);
+        let original_records = postgres.query_raw(&query_column).await.unwrap();
         assert_eq!(original_records.len(), 16);
 
         let mut condition = Conditions::new();
         condition.add_condition_from_str("user_id", "1", "eq", "", No).unwrap();
-        let _ = postgres.delete(condition).await.unwrap();
+        let _ = postgres.delete(&condition).await.unwrap();
 
-        let updated_records = postgres.query_raw(
-            QueryColumns::new(true)
-        ).await.unwrap();
+        let updated_records = postgres.query_raw(&query_column).await.unwrap();
 
         assert_eq!(updated_records.len(), 11);
     }

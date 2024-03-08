@@ -23,7 +23,7 @@ use crate::access::validators::validate_alphanumeric_name;
 ///
 ///     let query_columns = QueryColumns::new(true);
 ///
-///     postgres.query_raw(query_columns).await.expect("query failed");
+///     postgres.query_raw(&query_columns).await.expect("query failed");
 /// }
 /// ```
 pub struct PostgresBase {
@@ -178,8 +178,10 @@ impl PostgresBase {
     /// # Errors
     ///
     /// Returns a `PostgresBaseError` if there was an error executing the query.
-    pub async fn query_raw(&self, query_columns: QueryColumns) -> Result<Vec<Row>, PostgresBaseError> {
-        self.query_inner_join_conditions(query_columns, JoinTables::new(), Conditions::new()).await
+    pub async fn query_raw(&self, query_columns: &QueryColumns) -> Result<Vec<Row>, PostgresBaseError> {
+        let empty_join_table = JoinTables::new();
+        let empty_condition = Conditions::new();
+        self.query_inner_join_conditions(query_columns, &empty_join_table, &empty_condition).await
     }
 
     /// Queries the database for data based on the provided query column and conditions.
@@ -197,8 +199,9 @@ impl PostgresBase {
     /// # Errors
     ///
     /// Returns a `PostgresBaseError` if there was an error querying the database.
-    pub async fn query_condition_raw(&self, query_column: QueryColumns, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
-        self.query_inner_join_conditions(query_column, JoinTables::new(), conditions).await
+    pub async fn query_condition_raw(&self, query_column: &QueryColumns, conditions: &Conditions) -> Result<Vec<Row>, PostgresBaseError> {
+        let join_tables = JoinTables::new();
+        self.query_inner_join_conditions(query_column, &join_tables, conditions).await
     }
 
     /// Queries the database with inner join and conditions.
@@ -234,7 +237,7 @@ impl PostgresBase {
     ///     * Your code....
     ///     */
     ///
-    ///     let result = db.query_condition_raw(query_column, conditions).await;
+    ///     let result = db.query_condition_raw(&query_column, &conditions).await;
     ///     match result {
     ///         Ok(rows) => {
     ///             for row in rows {
@@ -247,7 +250,7 @@ impl PostgresBase {
     ///     }
     /// }
     /// ```
-    pub async fn query_inner_join_conditions(&self, query_columns: QueryColumns, join_tables: JoinTables, conditions: Conditions) -> Result<Vec<Row>, PostgresBaseError> {
+    pub async fn query_inner_join_conditions(&self, query_columns: &QueryColumns, join_tables: &JoinTables, conditions: &Conditions) -> Result<Vec<Row>, PostgresBaseError> {
         let query_statement: String = SqlType::Select(query_columns).sql_build(self.table_name.as_str());
         let mut statement_vec: Vec<String> = vec![query_statement];
 
@@ -290,10 +293,10 @@ impl PostgresBase {
     ///     let mut insert_records = InsertRecords::new(&["column1", "column2"]);
     ///     insert_records.add_record(&["value1", "value2"]).expect("add record failed");
     ///
-    ///     let result = db.insert(insert_records).await.expect("insert failed");
+    ///     let result = db.insert(&insert_records).await.expect("insert failed");
     /// }
     /// ```
-    pub async fn insert(&self, insert_records: InsertRecords) -> Result<(), PostgresBaseError> {
+    pub async fn insert(&self, insert_records: &InsertRecords) -> Result<(), PostgresBaseError> {
         let params_values = insert_records.get_flat_values();
         let insert = SqlType::Insert(insert_records);
         let statement = insert.sql_build(self.table_name.as_str());
@@ -313,9 +316,10 @@ impl PostgresBase {
     ///
     /// - `Ok(())` if the update is successful.
     /// - `Err(PostgresBaseError)` if an error occurs during the update.
-    pub async fn update(&self, update_set: UpdateSets, allow_all_update: bool) -> Result<(), PostgresBaseError> {
+    pub async fn update(&self, update_set: &UpdateSets, allow_all_update: bool) -> Result<(), PostgresBaseError> {
         if allow_all_update {
-            self.update_condition(update_set, Conditions::new()).await
+            let condition = Conditions::new();
+            self.update_condition(update_set, &condition).await
         }
         else {
             Err(PostgresBaseError::UnsafeExecutionError("'update' method will update all records in the specified table so please consider to use 'update_condition' instead of this.".to_string()))
@@ -357,10 +361,10 @@ impl PostgresBase {
     ///         IsInJoinedTable::No)
     ///         .expect("adding condition failed");
     ///
-    ///     database.update_condition(update_set, conditions).await.expect("update failed");
+    ///     database.update_condition(&update_set, &conditions).await.expect("update failed");
     /// }
     /// ```
-    pub async fn update_condition(&self, update_set: UpdateSets, conditions: Conditions) -> Result<(), PostgresBaseError> {
+    pub async fn update_condition(&self, update_set: &UpdateSets, conditions: &Conditions) -> Result<(), PostgresBaseError> {
         let set_num = update_set.get_num_values();
         let mut params_values = update_set.get_flat_values();
         let statement_base = SqlType::Update(update_set).sql_build(self.table_name.as_str());
@@ -409,10 +413,10 @@ impl PostgresBase {
     ///         FirstCondition,
     ///         IsInJoinedTable::No).expect("adding condition failed");
     ///
-    ///     database.delete(conditions).await.expect("delete failed");
+    ///     database.delete(&conditions).await.expect("delete failed");
     /// }
     /// ```
-    pub async fn delete(&self, conditions: Conditions) -> Result<(), PostgresBaseError> {
+    pub async fn delete(&self, conditions: &Conditions) -> Result<(), PostgresBaseError> {
         if conditions.is_empty() {
             return Err(PostgresBaseError::UnsafeExecutionError("'delete' method unsupports deleting records without any condition.".to_string()))
         }
