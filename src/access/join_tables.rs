@@ -32,7 +32,7 @@ struct JoinTable {
 /// ```
 #[derive(Clone)]
 pub struct JoinTables {
-    pub(super) tables: Vec<JoinTable>,
+    tables: Vec<JoinTable>,
 }
 
 impl JoinTables {

@@ -56,16 +56,6 @@ mod tests_curd {
         std::env::set_var("DB_NAME",DB_NAME);
     }
 
-    fn get_image() -> GenericImage {
-        let image = GenericImage::new("postgres", "16.2-alpine3.19")
-            .with_wait_for(WaitFor::message_on_stderr("ready to accept connections"))
-            .with_env_var("POSTGRES_USER", DB_USER)
-            .with_env_var("POSTGRES_PASSWORD", DB_PASSWORD)
-            .with_env_var("POSTGRES_DB", DB_NAME);
-
-        image
-    }
-
     #[tokio::test]
     async fn test_connection() {
         let docker = Cli::default();
@@ -85,7 +75,6 @@ mod tests_curd {
     #[tokio::test]
     async fn test_select() {
         let docker = Cli::default();
-        let image = get_image();
         let node = test_data_creation(&docker).await.unwrap();
 
         let port  = node.get_host_port_ipv4(5432);
@@ -134,7 +123,6 @@ mod tests_curd {
     #[tokio::test]
     async fn test_insert() {
         let docker = Cli::default();
-        let image = get_image();
         let node = test_data_creation(&docker).await.unwrap();
 
         let port  = node.get_host_port_ipv4(5432);
@@ -195,7 +183,6 @@ mod tests_curd {
     #[tokio::test]
     async fn test_update() {
         let docker = Cli::default();
-        let image = get_image();
         let node = test_data_creation(&docker).await.unwrap();
 
         let port  = node.get_host_port_ipv4(5432);
@@ -241,5 +228,32 @@ mod tests_curd {
     }
 
     #[tokio::test]
-    async fn test_delete() {}
+    async fn test_delete() {
+        let docker = Cli::default();
+        let node = test_data_creation(&docker).await.unwrap();
+
+        let port  = node.get_host_port_ipv4(5432);
+
+        set_env(port);
+
+        let mut postgres = PostgresBase::new("records").unwrap();
+        postgres.set_schema("test_schema");
+        postgres.connect().await.unwrap();
+
+        let original_records = postgres.query_raw(
+            QueryColumns::new(true)
+        ).await.unwrap();
+
+        assert_eq!(original_records.len(), 16);
+
+        let mut condition = Conditions::new();
+        condition.add_condition_from_str("user_id", "1", "eq", "", No).unwrap();
+        let _ = postgres.delete(condition).await.unwrap();
+
+        let updated_records = postgres.query_raw(
+            QueryColumns::new(true)
+        ).await.unwrap();
+
+        assert_eq!(updated_records.len(), 11);
+    }
 }
