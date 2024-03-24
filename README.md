@@ -1,6 +1,3 @@
-> [!NOTE]
-> This project is under the development for v1.0.0 library!
-
 ## SafetyPostgres
 This library is for safety use of the PostgreSQL via Rust.  
 Generally speaking, we need to take care the SQL injection when executing SQL statement.  
