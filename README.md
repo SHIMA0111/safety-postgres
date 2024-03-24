@@ -1,5 +1,5 @@
 > [!NOTE]
-> This project is under the development for releasing an initial library crate!
+> This project is under the development for v1.0.0 library!
 
 ## SafetyPostgres
 This library is for safety use of the PostgreSQL via Rust.  
