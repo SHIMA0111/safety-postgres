@@ -19,6 +19,8 @@ this library helps your application makes more safety!**
  - `serde = "1"` with `derive` feature
  - `serde_json = "0.4"`
    - These are used for Serialize and Deserialize the values to Json
+ - `rust_decimal = "1"`
+   - A library to support decimal format
 
 ## License
 This project is licensed under the [MIT License](LICENSE-mit.md) and [Apache-2.0 License](LICENSE-ap.md)
