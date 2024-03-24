@@ -4,9 +4,11 @@ description = "Wrapper of tokio-postgres for executing SQL more safer out of use
 authors = ["SHIMA<shima@little-tabby.com>"]
 keywords = ["sql", "postgres", "PostgreSQL", "safety-postgres"]
 categories = ["database"]
-license = "MIT"
+license = "MIT OR Apache-2.0"
 version = "0.1.0"
-repository = "https://github.com/SHIMA0111/safe-postgres"
+documentation = "https://docs.rs/safety-postgres/"
+homepage = "https://crates.io/crates/safety-postgres"
+repository = "https://github.com/SHIMA0111/safety-postgres"
 readme = "README.md"
 edition = "2021"
 
