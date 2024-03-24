@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
+use rust_decimal::Decimal;
 use tokio_postgres::types::ToSql;
 
 /// Represents different types of parameters.
@@ -19,6 +20,7 @@ enum Param {
     Text(String),
     Int(i32),
     Float(f32),
+    Decimal(Decimal),
     Date(NaiveDate),
     DateTime(NaiveDateTime),
     Time(NaiveTime),
@@ -51,6 +53,17 @@ pub(super) fn box_param_generator(str_params: &[String]) -> Vec<Box<dyn ToSql + 
         else if let Ok(f) = str_param.parse::<f32>() {
             params.push(Param::Float(f));
         }
+        else if str_param.ends_with("d") {
+            let param_series: Vec<&str> = str_param.split("d").collect();
+            let val = param_series[0];
+
+            if let Ok(dec) = Decimal::from_str(val) {
+                params.push(Param::Decimal(dec));
+            }
+            else {
+                params.push(Param::Text(str_param.to_string()))
+            }
+        }
         else if let Ok(dt) = NaiveDateTime::from_str(str_param) {
             params.push(Param::DateTime(dt));
         }
@@ -74,6 +87,7 @@ pub(super) fn box_param_generator(str_params: &[String]) -> Vec<Box<dyn ToSql + 
         match param {
             Param::Int(i) => box_param.push(Box::new(i) as Box<dyn ToSql + Sync>),
             Param::Float(f) => box_param.push(Box::new(f) as Box<dyn ToSql + Sync>),
+            Param::Decimal(dec) => box_param.push(Box::new(dec) as Box<dyn ToSql + Sync>),
             Param::DateTime(dt) => box_param.push(Box::new(dt) as Box<dyn ToSql + Sync>),
             Param::Date(d) => box_param.push(Box::new(d) as Box<dyn ToSql + Sync>),
             Param::Time(t) => box_param.push(Box::new(t) as Box<dyn ToSql + Sync>),

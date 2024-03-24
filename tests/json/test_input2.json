@@ -1,0 +1,18 @@
+{
+  "data": [
+    {
+      "user_id": 1,
+      "record_date": "2024-04-12",
+      "subcategory_id": 2,
+      "work_time": 2.0,
+      "message_comment": "comment_json"
+    },
+    {
+      "user_id": 2,
+      "record_date": "2023-12-12",
+      "subcategory_id": 4,
+      "work_time": 12.9,
+      "message_comment": ""
+    }
+  ]
+}

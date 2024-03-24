@@ -24,4 +24,4 @@ this library helps your application makes more safety!**
    - These are used for Serialize and Deserialize the values to Json
 
 ## License
-This project is licensed under the [MIT License](LICENSE-mit)
+This project is licensed under the [MIT License](LICENSE-mit.md) and [Apache-2.0 License](LICENSE-ap.md)

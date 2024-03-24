@@ -1,0 +1,7 @@
+{
+  "column": ["user_id", "record_date", "subcategory_id", "work_time", "message_comment"],
+  "data": [
+    [1, "2024-03-29", 3, 23.8, ""],
+    [3, "2024-04-01", 2, 1.6, ""]
+  ]
+}

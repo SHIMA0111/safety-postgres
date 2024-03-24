@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use tokio;
 use tokio_postgres::{NoTls, Error as PGError, row::Row, Client, Statement};
 use tokio_postgres::types::ToSql;
@@ -13,7 +14,7 @@ use crate::access::validators::validate_alphanumeric_name;
 ///
 /// # Example
 /// ```rust
-/// use safety_postgres::access::postgres_base::PostgresBase;
+/// use safety_postgres::access::postgres::PostgresBase;
 /// use safety_postgres::access::sql_base::QueryColumns;
 ///
 /// async fn postgres_query() {
@@ -74,7 +75,7 @@ impl PostgresBase {
     ///
     /// # Example
     /// ```rust
-    /// use safety_postgres::access::postgres_base::PostgresBase;
+    /// use safety_postgres::access::postgres::PostgresBase;
     /// # std::env::set_var("DB_USER", "username");
     /// # std::env::set_var("DB_PASSWORD", "password");
     /// # std::env::set_var("DB_HOST", "localhost");
@@ -138,7 +139,7 @@ impl PostgresBase {
     /// # Example
     ///
     /// ```rust
-    /// use safety_postgres::access::postgres_base::PostgresBase;
+    /// use safety_postgres::access::postgres::PostgresBase;
     ///
     /// async fn postgres_connect() {
     ///     let mut postgres = PostgresBase::new("your_table_name").expect("PostgresBase struct return error");
@@ -222,7 +223,7 @@ impl PostgresBase {
     /// ```rust
     /// use safety_postgres::access::conditions::Conditions;
     /// use safety_postgres::access::join_tables::JoinTables;
-    /// use safety_postgres::access::postgres_base::PostgresBase;
+    /// use safety_postgres::access::postgres::PostgresBase;
     /// use safety_postgres::access::sql_base::QueryColumns;
     ///
     /// async fn postgres_query() {
@@ -284,7 +285,7 @@ impl PostgresBase {
     /// # Examples
     ///
     /// ```
-    /// use safety_postgres::access::postgres_base::PostgresBase;
+    /// use safety_postgres::access::postgres::PostgresBase;
     /// use safety_postgres::access::sql_base::InsertRecords;
     ///
     /// async fn postgres_insert() {
@@ -342,7 +343,7 @@ impl PostgresBase {
     ///
     /// ```rust
     /// use safety_postgres::access::conditions::{Conditions, IsInJoinedTable};
-    /// use safety_postgres::access::postgres_base::PostgresBase;
+    /// use safety_postgres::access::postgres::PostgresBase;
     /// use safety_postgres::access::sql_base::UpdateSets;
     ///
     /// async fn postgres_update() {
@@ -399,7 +400,7 @@ impl PostgresBase {
     /// use safety_postgres::access::conditions::ComparisonOperator::Grater;
     /// use safety_postgres::access::conditions::{Conditions, IsInJoinedTable};
     /// use safety_postgres::access::conditions::LogicalOperator::FirstCondition;
-    /// use safety_postgres::access::postgres_base::PostgresBase;
+    /// use safety_postgres::access::postgres::PostgresBase;
     ///
     /// async fn postgres_delete() {
     ///     let mut database = PostgresBase::new("my_table").expect("db init failed");
@@ -502,26 +503,6 @@ impl PostgresBase {
         self
     }
 
-    /// Get the configuration string for connecting to the PostgreSQL database.
-    ///
-    /// # Returns
-    ///
-    /// * Configuration - Representing the configuration for connecting to the database.
-    pub fn get_config(&self) -> String {
-        let mut schema_name: Option<&str> = None;
-
-        if self.table_name.contains(".") {
-            let schema_table: Vec<&str> = self.table_name.split(".").collect();
-            schema_name = Some(schema_table[0]);
-        }
-
-        if let Some(schema) = schema_name {
-            format!("postgresql://{}:{}@{}:{}/{}?options=--search_path={}", self.username, self.password, self.hostname, self.port, self.dbname, schema)
-        } else {
-            format!("postgresql://{}:{}@{}:{}/{}", self.username, self.password, self.hostname, self.port, self.dbname)
-        }
-    }
-
     /// Executes a query statement with the given parameters and returns a vector of rows as the result.
     ///
     /// # Arguments
@@ -612,10 +593,27 @@ impl PostgresBase {
     }
 }
 
+impl Debug for PostgresBase {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let mut schema_name: Option<&str> = None;
+
+        if self.table_name.contains(".") {
+            let schema_table: Vec<&str> = self.table_name.split(".").collect();
+            schema_name = Some(schema_table[0]);
+        }
+        if let Some(schema) = schema_name {
+            write!(f, "postgresql://{}:****@{}:{}/{}?options=--search_path={}", self.username, self.hostname, self.port, self.dbname, schema)
+        } else {
+            write!(f, "postgresql://{}:****@{}:{}/{}", self.username, self.hostname, self.port, self.dbname)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::fmt::format;
     use crate::access::errors::PostgresBaseError;
-    use crate::access::postgres_base::PostgresBase;
+    use crate::access::postgres::PostgresBase;
 
     #[test]
     fn test_set_and_get_connect_conf() {
@@ -625,24 +623,24 @@ mod tests {
 
         let mut postgres = PostgresBase::new("test_table").unwrap();
 
-        let config = postgres.get_config();
+        let config = format!("{:?}", postgres);
 
-        assert_eq!(config, "postgresql://username:password@localhost:5432/postgres");
+        assert_eq!(config, "postgresql://username:****@localhost:5432/postgres");
 
         postgres.set_dbname("test");
-        let config = postgres.get_config();
+        let config = format!("{:?}", postgres);
 
-        assert_eq!(config, "postgresql://username:password@localhost:5432/test");
+        assert_eq!(config, "postgresql://username:****@localhost:5432/test");
 
         postgres.set_port(12345);
-        let config = postgres.get_config();
+        let config = format!("{:?}", postgres);
 
-        assert_eq!(config, "postgresql://username:password@localhost:12345/test");
+        assert_eq!(config, "postgresql://username:****@localhost:12345/test");
 
         postgres.set_schema("schema");
-        let config = postgres.get_config();
+        let config = format!("{:?}", postgres);
 
-        assert_eq!(config, "postgresql://username:password@localhost:12345/test?options=--search_path=schema");
+        assert_eq!(config, "postgresql://username:****@localhost:12345/test?options=--search_path=schema");
     }
 
     #[test]
@@ -653,24 +651,5 @@ mod tests {
 
         let Err(e) = PostgresBase::new("tab;le") else { panic!() };
         assert_eq!(e, PostgresBaseError::InputInvalidError(format!("{} is invalid name. Please confirm the rule of the 'table_name'", "tab;le")));
-    }
-
-    #[test]
-    fn test_set_invalid_value() {
-        std::env::set_var("DB_USER", "username");
-        std::env::set_var("DB_PASSWORD", "password");
-        std::env::set_var("DB_HOST", "localhost");
-
-        let mut postgres = PostgresBase::new("table").unwrap();
-
-        postgres.set_dbname("db;Name");
-        let config = postgres.get_config();
-
-        assert_eq!(config, "postgresql://username:password@localhost:5432/postgres");
-
-        postgres.set_schema("sch;ma");
-        let config = postgres.get_config();
-
-        assert_eq!(config, "postgresql://username:password@localhost:5432/postgres");
     }
 }

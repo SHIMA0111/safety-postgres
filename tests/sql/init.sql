@@ -42,7 +42,7 @@ CREATE TABLE records
     user_id        integer not null,
     record_date    date    not null,
     subcategory_id integer not null,
-    work_time      float4  not null,
+    work_time      real  not null,
     message_comment        varchar,
     FOREIGN KEY (user_id) REFERENCES users (id),
     FOREIGN KEY (subcategory_id) REFERENCES subcategories (id)

@@ -10,7 +10,7 @@ mod tests_curd {
     use safety_postgres::access::conditions::{Conditions, IsInJoinedTable};
     use safety_postgres::access::conditions::IsInJoinedTable::No;
     use safety_postgres::access::join_tables::JoinTables;
-    use safety_postgres::access::postgres_base::PostgresBase;
+    use safety_postgres::access::postgres::PostgresBase;
     use safety_postgres::access::sql_base::{InsertRecords, QueryColumns, UpdateSets};
 
     const DB_USER: &str = "testuser";
