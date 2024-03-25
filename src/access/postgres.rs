@@ -7,6 +7,7 @@ use crate::access::conditions::Conditions;
 use crate::access::errors::PostgresBaseError;
 use crate::access::generate_params::{box_param_generator, params_ref_generator};
 use crate::access::join_tables::JoinTables;
+use crate::access::json_parser::row_to_json;
 use crate::access::sql_base::{InsertRecords, QueryColumns, SqlType, UpdateSets};
 use crate::access::validators::validate_alphanumeric_name;
 
@@ -269,6 +270,27 @@ impl PostgresBase {
         let statement = statement_vec.join(" ");
         let res = self.query(&statement, &params_values).await?;
         Ok(res)
+    }
+
+    pub async fn query_json(&self, query_columns: &QueryColumns) -> Result<String, PostgresBaseError> {
+        let empty_join_table = JoinTables::new();
+        let empty_condition = Conditions::new();
+        self.query_inner_join_conditions_json(query_columns, &empty_join_table, &empty_condition).await
+    }
+
+    pub async fn query_condition_json(&self, query_columns: &QueryColumns, conditions: &Conditions) -> Result<String, PostgresBaseError> {
+        let empty_join_table = JoinTables::new();
+        self.query_inner_join_conditions_json(query_columns, &empty_join_table, conditions).await
+    }
+
+    pub async fn query_inner_join_conditions_json(&self, query_columns: &QueryColumns, join_tables: &JoinTables, conditions: &Conditions) -> Result<String, PostgresBaseError> {
+        let query_result = self.query_inner_join_conditions(query_columns, join_tables, conditions).await?;
+        let json_result = match row_to_json(&query_result) {
+            Ok(json) => json,
+            Err(e) => return Err(PostgresBaseError::SerializeError(e.to_string())),
+        };
+
+        Ok(json_result)
     }
 
     /// Inserts records into the database table.
@@ -568,7 +590,11 @@ impl PostgresBase {
             None => return Err(PostgresBaseError::ConnectionNotFoundError("Client does not exist. Please connect the PostgreSQL first via connect method.".to_string())),
         };
 
-        let box_params = box_param_generator(params);
+        let box_params_res = box_param_generator(params);
+        let box_params = match box_params_res {
+            Ok(box_params) => box_params,
+            Err(e) => return Err(PostgresBaseError::SQLExecutionError(format!("input data parse failed by {}", e))),
+        };
         let params_ref: Vec<&(dyn ToSql + Sync)> = params_ref_generator(&box_params);
 
         let statement: Statement = match client.prepare(statement_str).await {

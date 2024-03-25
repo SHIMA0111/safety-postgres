@@ -1,31 +1,8 @@
 use std::str::FromStr;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
-use rust_decimal::Decimal;
 use tokio_postgres::types::ToSql;
-
-/// Represents different types of parameters.
-///
-/// The `Param` enum is used to hold different types of parameters to pass SQL executor.
-///
-/// # Variants
-///
-/// - `Text(String)`: A parameter of type `String`.
-/// - `Int(i32)`: A parameter of type `i32`.
-/// - `Float(f32)`: A parameter of type `f32`.
-/// - `Date(NaiveDate)`: A parameter of type `NaiveDate`.
-/// - `DateTime(NaiveDateTime)`: A parameter of type `NaiveDateTime`.
-/// - `Time(NaiveTime)`: A parameter of type `NaiveTime`.
-/// - `Bool(bool)`: A parameter of type `bool`.
-enum Param {
-    Text(String),
-    Int(i32),
-    Float(f32),
-    Decimal(Decimal),
-    Date(NaiveDate),
-    DateTime(NaiveDateTime),
-    Time(NaiveTime),
-    Bool(bool),
-}
+use crate::access::converter::{Param, str_to_value};
+use crate::access::errors::DataParseError;
 
 /// Generates boxed parameters from a vector of strings.
 ///
@@ -44,58 +21,30 @@ enum Param {
 /// # Returns
 ///
 /// A vector of boxed trait objects (`Box<dyn ToSql + Sync>`) containing the parsed parameters.
-pub(super) fn box_param_generator(str_params: &[String]) -> Vec<Box<dyn ToSql + Sync>> {
+pub(super) fn box_param_generator(str_params: &[String]) -> Result<Vec<Box<dyn ToSql + Sync>>, DataParseError> {
     let mut params: Vec<Param> = Vec::new();
     for str_param in str_params {
-        if let Ok(i) = str_param.parse::<i32>() {
-            params.push(Param::Int(i));
-        }
-        else if let Ok(f) = str_param.parse::<f32>() {
-            params.push(Param::Float(f));
-        }
-        else if str_param.ends_with("d") {
-            let param_series: Vec<&str> = str_param.split("d").collect();
-            let val = param_series[0];
-
-            if let Ok(dec) = Decimal::from_str(val) {
-                params.push(Param::Decimal(dec));
-            }
-            else {
-                params.push(Param::Text(str_param.to_string()))
-            }
-        }
-        else if let Ok(dt) = NaiveDateTime::from_str(str_param) {
-            params.push(Param::DateTime(dt));
-        }
-        else if let Ok(d) = NaiveDate::from_str(str_param) {
-            params.push(Param::Date(d));
-        }
-        else if let Ok(t) = NaiveTime::from_str(str_param) {
-            params.push(Param::Time(t));
-        }
-        else if let Ok(b) = str_param.parse::<bool>() {
-            params.push(Param::Bool(b));
-        }
-        else {
-            params.push(Param::Text(str_param.to_string()))
-        }
+        params.push(str_to_value(str_param)?);
     }
 
     let mut box_param: Vec<Box<dyn ToSql + Sync>> = Vec::new();
 
     for param in params {
         match param {
-            Param::Int(i) => box_param.push(Box::new(i) as Box<dyn ToSql + Sync>),
-            Param::Float(f) => box_param.push(Box::new(f) as Box<dyn ToSql + Sync>),
-            Param::Decimal(dec) => box_param.push(Box::new(dec) as Box<dyn ToSql + Sync>),
-            Param::DateTime(dt) => box_param.push(Box::new(dt) as Box<dyn ToSql + Sync>),
-            Param::Date(d) => box_param.push(Box::new(d) as Box<dyn ToSql + Sync>),
-            Param::Time(t) => box_param.push(Box::new(t) as Box<dyn ToSql + Sync>),
-            Param::Bool(b) => box_param.push(Box::new(b) as Box<dyn ToSql + Sync>),
-            Param::Text(t) => box_param.push(Box::new(t) as Box<dyn ToSql + Sync>),
+            Param::Int(int) => box_param.push(Box::new(int) as Box<dyn ToSql + Sync>),
+            Param::SmallInt(smallint) => box_param.push(Box::new(smallint) as Box<dyn  ToSql + Sync>),
+            Param::BigInt(bigint) => box_param.push(Box::new(bigint) as Box<dyn ToSql + Sync>),
+            Param::Float(float) => box_param.push(Box::new(float) as Box<dyn ToSql + Sync>),
+            Param::Double(double) => box_param.push(Box::new(double) as Box<dyn ToSql + Sync>),
+            Param::Decimal(decimal) => box_param.push(Box::new(decimal) as Box<dyn ToSql + Sync>),
+            Param::DateTime(datetime) => box_param.push(Box::new(datetime) as Box<dyn ToSql + Sync>),
+            Param::Date(date) => box_param.push(Box::new(date) as Box<dyn ToSql + Sync>),
+            Param::Time(time) => box_param.push(Box::new(time) as Box<dyn ToSql + Sync>),
+            Param::Bool(bool) => box_param.push(Box::new(bool) as Box<dyn ToSql + Sync>),
+            Param::Text(text) => box_param.push(Box::new(text) as Box<dyn ToSql + Sync>),
         }
     }
-    box_param
+    Ok(box_param)
 }
 
 /// Generates a new reference to the parameters from a vector of boxed parameters.
@@ -129,7 +78,7 @@ mod tests {
             "false".to_string()
         ];
 
-        let box_params = box_param_generator(&str_params);
+        let box_params = box_param_generator(&str_params).unwrap();
         assert_eq!(box_params.len(), str_params.len());
         assert_eq!(
             format!("{:?}", box_params[0]),
@@ -174,7 +123,7 @@ mod tests {
             "false".to_string()
         ];
 
-        let box_params = box_param_generator(&str_params);
+        let box_params = box_param_generator(&str_params).unwrap();
         let params_ref = params_ref_generator(&box_params);
         assert_eq!(params_ref.len(), str_params.len());
     }

@@ -1,6 +1,6 @@
 use std::fmt;
 use std::error::Error;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 
 /// A trait for generating custom error values.
@@ -158,6 +158,7 @@ pub enum PostgresBaseError {
     ConnectionNotFoundError(String),
     SQLExecutionError(String),
     TokioPostgresError(String),
+    SerializeError(String),
 }
 
 impl fmt::Display for PostgresBaseError {
@@ -170,8 +171,34 @@ impl fmt::Display for PostgresBaseError {
             Self::ConnectionNotFoundError(e) => write!(f, "SQL execution need connection but it can't be found. {}", e),
             Self::SQLExecutionError(e) => write!(f, "SQL execution failed due to {}", e),
             Self::TokioPostgresError(e) => write!(f, "Get error from tokio-postgres crate: {}", e),
+            Self::SerializeError(e) => write!(f, "Serialize process failed due to {}", e),
         }
     }
 }
 
 impl Error for PostgresBaseError {}
+
+#[derive(Debug, PartialEq)]
+pub enum DataParseError {
+    ParseIntError(String),
+    ParseFloatError(String),
+    ParseNumericError(String),
+    ParseDateTimeError(String),
+    ParseUnsupportedError(String),
+    ParseGetDataError(String),
+}
+
+impl Display for DataParseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match &self {
+            Self::ParseIntError(e) => write!(f, "Parsing to Integer failed due to {}.", e),
+            Self::ParseFloatError(e) => write!(f, "Parsing to Float failed due to {}.", e),
+            Self::ParseNumericError(e) => write!(f, "Parsing to Decimal failed due to {}.", e),
+            Self::ParseDateTimeError(e) => write!(f, "Parsing to DateTime failed due to {}.", e),
+            Self::ParseUnsupportedError(e) => write!(f, "Detected unsupported data type: [{}]", e),
+            Self::ParseGetDataError(e) => write!(f, "Getting value from Row failed due to {}.", e),
+        }
+    }
+}
+
+impl Error for DataParseError {}

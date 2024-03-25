@@ -15,3 +15,4 @@ pub mod sql_base;
 /// Module `validators` provides functions for validating input data utilities.
 mod validators;
 pub mod json_parser;
+mod converter;
