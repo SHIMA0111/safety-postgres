@@ -8,7 +8,7 @@ struct GetData {
     data: Vec<Map<String, Value>>
 }
 
-pub fn row_to_json(query_result: &Vec<Row>) -> Result<String, JSONError> {
+pub(super) fn row_to_json(query_result: &Vec<Row>) -> Result<String, JSONError> {
     let mut data: Vec<Map<String, Value>> = Vec::new();
     let columns: Vec<String> =
         query_result[0].columns().iter().map(
