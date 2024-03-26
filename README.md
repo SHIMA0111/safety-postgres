@@ -21,6 +21,8 @@ this library helps your application makes more safety!**
    - These are used for Serialize and Deserialize the values to Json
  - `rust_decimal = "1"`
    - A library to support decimal format
+ - `itertool = "0.12"`
+   - A library to empower iter processes (this realizes permutation and so on)
 
 ## License
 This project is licensed under the [MIT License](LICENSE-mit.md) and [Apache-2.0 License](LICENSE-ap.md)
