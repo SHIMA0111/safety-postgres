@@ -191,12 +191,12 @@ pub enum DataParseError {
 impl Display for DataParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match &self {
-            Self::ParseIntError(e) => write!(f, "Parsing to Integer failed due to {}.", e),
-            Self::ParseFloatError(e) => write!(f, "Parsing to Float failed due to {}.", e),
-            Self::ParseNumericError(e) => write!(f, "Parsing to Decimal failed due to {}.", e),
-            Self::ParseDateTimeError(e) => write!(f, "Parsing to DateTime failed due to {}.", e),
-            Self::ParseUnsupportedError(e) => write!(f, "Detected unsupported data type: [{}]", e),
-            Self::ParseGetDataError(e) => write!(f, "Getting value from Row failed due to {}.", e),
+            Self::ParseIntError(e) => write!(f, "Parsing to Integer failed due to {}", e),
+            Self::ParseFloatError(e) => write!(f, "Parsing to Float failed due to {}", e),
+            Self::ParseNumericError(e) => write!(f, "Parsing to Decimal failed due to {}", e),
+            Self::ParseDateTimeError(e) => write!(f, "Parsing to DateTime failed due to {}", e),
+            Self::ParseUnsupportedError(e) => write!(f, "Detected unsupported data: {}", e),
+            Self::ParseGetDataError(e) => write!(f, "Getting value from Row failed due to {}", e),
         }
     }
 }

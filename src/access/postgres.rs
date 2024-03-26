@@ -441,7 +441,7 @@ impl PostgresBase {
     /// ```
     pub async fn delete(&self, conditions: &Conditions) -> Result<(), PostgresBaseError> {
         if conditions.is_empty() {
-            return Err(PostgresBaseError::UnsafeExecutionError("'delete' method unsupports deleting records without any condition.".to_string()))
+            return Err(PostgresBaseError::UnsafeExecutionError("'delete' method unsupported deleting records without any condition.".to_string()))
         }
 
         let statement_base = SqlType::Delete.sql_build(self.table_name.as_str());
@@ -593,26 +593,26 @@ impl PostgresBase {
         let box_params_res = box_param_generator(params);
         let box_params = match box_params_res {
             Ok(box_params) => box_params,
-            Err(e) => return Err(PostgresBaseError::SQLExecutionError(format!("input data parse failed by {}", e))),
+            Err(e) => return Err(PostgresBaseError::SQLExecutionError(e.to_string())),
         };
         let params_ref: Vec<&(dyn ToSql + Sync)> = params_ref_generator(&box_params);
 
         let statement: Statement = match client.prepare(statement_str).await {
             Ok(statement) => statement,
-            Err(e) => return Err(PostgresBaseError::TokioPostgresError(format!("Prepare statement generation failed in tokio-postgres like {}", e))),
+            Err(e) => return Err(PostgresBaseError::TokioPostgresError(e.to_string())),
         };
 
         match execute_type {
             ExecuteType::Execute => {
                 match client.execute(&statement, &params_ref).await {
                     Ok(res) => Ok(ExecuteResult::Execute(res)),
-                    Err(e) => return Err(PostgresBaseError::SQLExecutionError(format!("SQL executor failed due to {}", e))),
+                    Err(e) => return Err(PostgresBaseError::SQLExecutionError(e.to_string())),
                 }
             }
             ExecuteType::Query => {
                 match client.query(&statement, &params_ref).await {
                     Ok(res) => Ok(ExecuteResult::Query(res)),
-                    Err(e) => return Err(PostgresBaseError::SQLExecutionError(format!("SQL executor failed due to {}", e))),
+                    Err(e) => return Err(PostgresBaseError::SQLExecutionError(e.to_string())),
                 }
             }
         }
@@ -637,7 +637,6 @@ impl Debug for PostgresBase {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::format;
     use crate::access::errors::PostgresBaseError;
     use crate::access::postgres::PostgresBase;
 

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use tokio_postgres::types::ToSql;
-use crate::access::converter::{Param, str_to_value};
+use crate::access::converter::{Param, str_to_param};
 use crate::access::errors::DataParseError;
 
 /// Generates boxed parameters from a vector of strings.
@@ -24,7 +24,7 @@ use crate::access::errors::DataParseError;
 pub(super) fn box_param_generator(str_params: &[String]) -> Result<Vec<Box<dyn ToSql + Sync>>, DataParseError> {
     let mut params: Vec<Param> = Vec::new();
     for str_param in str_params {
-        params.push(str_to_value(str_param)?);
+        params.push(str_to_param(str_param)?);
     }
 
     let mut box_param: Vec<Box<dyn ToSql + Sync>> = Vec::new();

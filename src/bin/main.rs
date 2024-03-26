@@ -1,5 +1,4 @@
 use std::error::Error;
-use safety_postgres::access::json_parser::row_to_json;
 use safety_postgres::access::postgres::PostgresBase;
 use safety_postgres::access::sql_base::{InsertRecords, QueryColumns};
 
@@ -13,9 +12,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let columns = vec!["user_id", "record_date", "subcategory_id", "work_time", "message_comment"];
     let mut insert_record = InsertRecords::new(&columns);
-    insert_record.add_record(&vec!["1", "2024-03-29", "3", "23.8dec", "domain_data"])?;
+    insert_record.add_record(&vec!["1", "24-11-01T21:02:05+09:00", "3", "23.8dec", "domain_data"])?;
     postgres.insert(&insert_record).await?;
-
     let json = postgres.query_json(&query_columns).await?;
     println!("{}", json);
 
