@@ -1,5 +1,5 @@
-use crate::access::errors::*;
-use crate::access::validators::validate_string;
+use crate::legacies::errors::*;
+use crate::legacies::validators::validate_string;
 
 /// Represents the different types of SQL statements.
 #[derive(Clone)]
@@ -22,7 +22,7 @@ trait SqlBuilder {
 /// # Example
 ///
 /// ```rust
-/// use safety_postgres::access::sql_base::QueryColumns;
+/// use safety_postgres::legacies::sql_base::QueryColumns;
 ///
 /// let mut query_columns = QueryColumns::new(false);
 /// query_columns.add_column("schema_name", "table_name", "column_name").unwrap();
@@ -81,7 +81,7 @@ impl QueryColumns {
     /// # Example
     ///
     /// ```rust
-    /// use safety_postgres::access::sql_base::QueryColumns;
+    /// use safety_postgres::legacies::sql_base::QueryColumns;
     ///
     /// let mut query_columns = QueryColumns::new(false);
     /// query_columns.add_column("", "", "id").unwrap().add_column("", "", "username").unwrap();
@@ -114,7 +114,7 @@ impl QueryColumns {
     /// # Example
     ///
     /// ```rust
-    /// use safety_postgres::access::sql_base::QueryColumns;
+    /// use safety_postgres::legacies::sql_base::QueryColumns;
     ///
     /// let obj = QueryColumns::new(true);
     /// let query_text = obj.get_query_text();
@@ -168,7 +168,7 @@ impl SqlBuilder for QueryColumns {
 /// # Example
 ///
 /// ```rust
-/// use safety_postgres::access::sql_base::UpdateSets;
+/// use safety_postgres::legacies::sql_base::UpdateSets;
 ///
 /// let mut update_sets = UpdateSets::new();
 ///
@@ -220,7 +220,7 @@ impl UpdateSets {
     /// # Example
     ///
     /// ```rust
-    /// use safety_postgres::access::sql_base::UpdateSets;
+    /// use safety_postgres::legacies::sql_base::UpdateSets;
     ///
     /// let mut update_sets = UpdateSets::new();
     /// update_sets.add_set("name", "John").expect("adding update set failed");
@@ -307,7 +307,7 @@ impl SqlBuilder for UpdateSets {
 /// # Example
 ///
 /// ```rust
-/// use safety_postgres::access::sql_base::InsertRecords;
+/// use safety_postgres::legacies::sql_base::InsertRecords;
 ///
 /// let mut insert_records = InsertRecords::new(&["str_column1", "int_column2", "float_column3"]);
 ///
@@ -368,7 +368,7 @@ impl InsertRecords {
     /// # Examples
     ///
     /// ```rust
-    /// use safety_postgres::access::sql_base::InsertRecords;
+    /// use safety_postgres::legacies::sql_base::InsertRecords;
     ///
     /// let mut insert_records = InsertRecords::new(&["first_name", "last_name", "age"]);
     ///
@@ -401,7 +401,7 @@ impl InsertRecords {
     /// # Example
     ///
     /// ```
-    /// use safety_postgres::access::sql_base::InsertRecords;
+    /// use safety_postgres::legacies::sql_base::InsertRecords;
     ///
     /// let columns = vec!["column1", "column2"];
     /// let mut insert_records = InsertRecords::new(&columns);

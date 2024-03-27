@@ -1,6 +1,6 @@
 use std::error::Error;
-use safety_postgres::access::postgres::PostgresBase;
-use safety_postgres::access::sql_base::{InsertRecords, QueryColumns};
+use safety_postgres::legacies::postgres::PostgresBase;
+use safety_postgres::legacies::sql_base::{InsertRecords, QueryColumns};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {

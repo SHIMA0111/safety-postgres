@@ -1,4 +1,4 @@
-use crate::access::errors::ErrorGenerator;
+use crate::legacies::errors::ErrorGenerator;
 
 /// Validates if a string contains only alphanumeric characters or characters from a provided allow list.
 ///
@@ -39,7 +39,7 @@ pub(super) fn validate_string<E, G>(str: &str, param_name: &str, error_generator
 
 #[cfg(test)]
 mod tests {
-    use crate::access::errors::{JoinTableError, JoinTableErrorGenerator};
+    use crate::legacies::errors::{JoinTableError, JoinTableErrorGenerator};
     use super::*;
 
     /// Tests `validate_alphanumeric_name` function.

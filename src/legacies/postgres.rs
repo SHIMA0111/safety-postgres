@@ -2,21 +2,21 @@ use std::fmt::{Debug, Formatter};
 use tokio;
 use tokio_postgres::{NoTls, Error as PGError, row::Row, Client, Statement};
 use tokio_postgres::types::ToSql;
-use crate::access::app_config::AppConfig;
-use crate::access::conditions::Conditions;
-use crate::access::errors::PostgresBaseError;
-use crate::access::generate_params::{box_param_generator, params_ref_generator};
-use crate::access::join_tables::JoinTables;
-use crate::access::json_parser::row_to_json;
-use crate::access::sql_base::{InsertRecords, QueryColumns, SqlType, UpdateSets};
-use crate::access::validators::validate_alphanumeric_name;
+use crate::legacies::app_config::AppConfig;
+use crate::legacies::conditions::Conditions;
+use crate::legacies::errors::PostgresBaseError;
+use crate::legacies::generate_params::{box_param_generator, params_ref_generator};
+use crate::legacies::join_tables::JoinTables;
+use crate::legacies::json_parser::row_to_json;
+use crate::legacies::sql_base::{InsertRecords, QueryColumns, SqlType, UpdateSets};
+use crate::legacies::validators::validate_alphanumeric_name;
 
 /// Represents a connection config to a PostgreSQL database.
 ///
 /// # Example
 /// ```rust
-/// use safety_postgres::access::postgres::PostgresBase;
-/// use safety_postgres::access::sql_base::QueryColumns;
+/// use safety_postgres::legacies::postgres::PostgresBase;
+/// use safety_postgres::legacies::sql_base::QueryColumns;
 ///
 /// async fn postgres_query() {
 ///     let mut postgres = PostgresBase::new("table_name")
@@ -76,7 +76,7 @@ impl PostgresBase {
     ///
     /// # Example
     /// ```rust
-    /// use safety_postgres::access::postgres::PostgresBase;
+    /// use safety_postgres::legacies::postgres::PostgresBase;
     /// # std::env::set_var("DB_USER", "username");
     /// # std::env::set_var("DB_PASSWORD", "password");
     /// # std::env::set_var("DB_HOST", "localhost");
@@ -140,7 +140,7 @@ impl PostgresBase {
     /// # Example
     ///
     /// ```rust
-    /// use safety_postgres::access::postgres::PostgresBase;
+    /// use safety_postgres::legacies::postgres::PostgresBase;
     ///
     /// async fn postgres_connect() {
     ///     let mut postgres = PostgresBase::new("your_table_name").expect("PostgresBase struct return error");
@@ -222,10 +222,10 @@ impl PostgresBase {
     /// # Examples
     ///
     /// ```rust
-    /// use safety_postgres::access::conditions::Conditions;
-    /// use safety_postgres::access::join_tables::JoinTables;
-    /// use safety_postgres::access::postgres::PostgresBase;
-    /// use safety_postgres::access::sql_base::QueryColumns;
+    /// use safety_postgres::legacies::conditions::Conditions;
+    /// use safety_postgres::legacies::join_tables::JoinTables;
+    /// use safety_postgres::legacies::postgres::PostgresBase;
+    /// use safety_postgres::legacies::sql_base::QueryColumns;
     ///
     /// async fn postgres_query() {
     ///     let mut db = PostgresBase::new("table_name").unwrap();
@@ -307,8 +307,8 @@ impl PostgresBase {
     /// # Examples
     ///
     /// ```
-    /// use safety_postgres::access::postgres::PostgresBase;
-    /// use safety_postgres::access::sql_base::InsertRecords;
+    /// use safety_postgres::legacies::postgres::PostgresBase;
+    /// use safety_postgres::legacies::sql_base::InsertRecords;
     ///
     /// async fn postgres_insert() {
     ///     let mut db = PostgresBase::new("my_table").expect("db struct init failed");
@@ -364,9 +364,9 @@ impl PostgresBase {
     /// # Example
     ///
     /// ```rust
-    /// use safety_postgres::access::conditions::{Conditions, IsInJoinedTable};
-    /// use safety_postgres::access::postgres::PostgresBase;
-    /// use safety_postgres::access::sql_base::UpdateSets;
+    /// use safety_postgres::legacies::conditions::{Conditions, IsInJoinedTable};
+    /// use safety_postgres::legacies::postgres::PostgresBase;
+    /// use safety_postgres::legacies::sql_base::UpdateSets;
     ///
     /// async fn postgres_update() {
     ///     let mut database = PostgresBase::new("my_table").expect("postgres base init failed");
@@ -419,10 +419,10 @@ impl PostgresBase {
     /// # Examples
     ///
     /// ```
-    /// use safety_postgres::access::conditions::ComparisonOperator::Grater;
-    /// use safety_postgres::access::conditions::{Conditions, IsInJoinedTable};
-    /// use safety_postgres::access::conditions::LogicalOperator::FirstCondition;
-    /// use safety_postgres::access::postgres::PostgresBase;
+    /// use safety_postgres::legacies::conditions::ComparisonOperator::Grater;
+    /// use safety_postgres::legacies::conditions::{Conditions, IsInJoinedTable};
+    /// use safety_postgres::legacies::conditions::LogicalOperator::FirstCondition;
+    /// use safety_postgres::legacies::postgres::PostgresBase;
     ///
     /// async fn postgres_delete() {
     ///     let mut database = PostgresBase::new("my_table").expect("db init failed");
@@ -637,8 +637,8 @@ impl Debug for PostgresBase {
 
 #[cfg(test)]
 mod tests {
-    use crate::access::errors::PostgresBaseError;
-    use crate::access::postgres::PostgresBase;
+    use crate::legacies::errors::PostgresBaseError;
+    use crate::legacies::postgres::PostgresBase;
 
     #[test]
     fn test_set_and_get_connect_conf() {

@@ -7,11 +7,11 @@ mod tests_curd {
     use testcontainers::{Container, GenericImage};
     use tokio::fs;
     use tokio_postgres::NoTls;
-    use safety_postgres::access::conditions::{Conditions, IsInJoinedTable};
-    use safety_postgres::access::conditions::IsInJoinedTable::No;
-    use safety_postgres::access::join_tables::JoinTables;
-    use safety_postgres::access::postgres::PostgresBase;
-    use safety_postgres::access::sql_base::{InsertRecords, QueryColumns, UpdateSets};
+    use safety_postgres::legacies::conditions::{Conditions, IsInJoinedTable};
+    use safety_postgres::legacies::conditions::IsInJoinedTable::No;
+    use safety_postgres::legacies::join_tables::JoinTables;
+    use safety_postgres::legacies::postgres::PostgresBase;
+    use safety_postgres::legacies::sql_base::{InsertRecords, QueryColumns, UpdateSets};
 
     const DB_USER: &str = "testuser";
     const DB_PASSWORD: &str = "testpassword";
