@@ -4,8 +4,8 @@ use itertools::Itertools;
 use rust_decimal::Decimal;
 use serde_json::{json, Value};
 use tokio_postgres::Row;
-use crate::legacies::errors::DataParseError;
-use crate::legacies::format::{ambiguous_datetime_formats, support_date_formats, support_datetime_formats, support_time_formats, timezone_datetime_formats, unsupported_date_formats, unsupported_datetime_formats, unsupported_time_formats};
+use crate::legacy::errors::DataParseError;
+use crate::legacy::format::{ambiguous_datetime_formats, support_date_formats, support_datetime_formats, support_time_formats, timezone_datetime_formats, unsupported_date_formats, unsupported_datetime_formats, unsupported_time_formats};
 
 const UNSUPPORTED_DATA_TYPE: [&str; 7] = ["f16", "isize", "fsize", "u16", "u32", "u64", "usize"];
 

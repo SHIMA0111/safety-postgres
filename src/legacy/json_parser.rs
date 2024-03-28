@@ -1,7 +1,7 @@
 use serde::{Serialize, Deserialize};
 use serde_json::{Map, Value, Error as JSONError};
 use tokio_postgres::Row;
-use crate::legacies::converter::row_to_value;
+use crate::legacy::converter::row_to_value;
 
 #[derive(Serialize, Deserialize)]
 struct GetData {

@@ -1,4 +1,4 @@
-use crate::legacies::validators::validate_alphanumeric_name;
+use crate::legacy::validators::validate_alphanumeric_name;
 
 /// Represents the configuration for the application.
 ///

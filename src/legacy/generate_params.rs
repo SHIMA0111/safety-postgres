@@ -1,8 +1,8 @@
 use std::str::FromStr;
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
 use tokio_postgres::types::ToSql;
-use crate::legacies::converter::{Param, str_to_param};
-use crate::legacies::errors::DataParseError;
+use crate::legacy::converter::{Param, str_to_param};
+use crate::legacy::errors::DataParseError;
 
 /// Generates boxed parameters from a vector of strings.
 ///

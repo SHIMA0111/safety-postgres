@@ -1,6 +1,6 @@
-use crate::legacies::conditions::IsInJoinedTable::Yes;
-use crate::legacies::errors::{ConditionError, ConditionErrorGenerator};
-use crate::legacies::validators::validate_string;
+use crate::legacy::conditions::IsInJoinedTable::Yes;
+use crate::legacy::errors::{ConditionError, ConditionErrorGenerator};
+use crate::legacy::validators::validate_string;
 
 /// Provides the available comparison operators for standardizing input for the `Conditions.add_condition()` method.
 ///
@@ -68,10 +68,10 @@ struct Condition {
 ///
 /// # Example
 /// ```rust
-/// use safety_postgres::legacies::conditions::ComparisonOperator::{Equal, Lower};
-/// use safety_postgres::legacies::conditions::Conditions;
-/// use safety_postgres::legacies::conditions::IsInJoinedTable::{No, Yes};
-/// use safety_postgres::legacies::conditions::LogicalOperator::{And, FirstCondition};
+/// use safety_postgres::legacy::conditions::ComparisonOperator::{Equal, Lower};
+/// use safety_postgres::legacy::conditions::Conditions;
+/// use safety_postgres::legacy::conditions::IsInJoinedTable::{No, Yes};
+/// use safety_postgres::legacy::conditions::LogicalOperator::{And, FirstCondition};
 ///
 /// let mut conditions = Conditions::new();
 ///
@@ -89,7 +89,7 @@ struct Condition {
 /// `Conditions.add_condition_from_str(column, value, condition_operator, condition_chain_operator, is_joined_table_condition)` method.
 ///
 /// ```rust
-/// use safety_postgres::legacies::conditions::{Conditions, IsInJoinedTable};
+/// use safety_postgres::legacy::conditions::{Conditions, IsInJoinedTable};
 ///
 /// let mut conditions = Conditions::new();
 ///
@@ -153,8 +153,8 @@ impl Conditions {
     /// # Examples
     ///
     /// ```
-    /// use safety_postgres::legacies::conditions::Conditions;
-    /// use safety_postgres::legacies::conditions::IsInJoinedTable::No;
+    /// use safety_postgres::legacy::conditions::Conditions;
+    /// use safety_postgres::legacy::conditions::IsInJoinedTable::No;
     ///
     /// let mut conditions = Conditions::new();
     /// conditions
@@ -202,8 +202,8 @@ impl Conditions {
     /// # Examples
     ///
     /// ```
-    /// use safety_postgres::legacies::conditions::Conditions;
-    /// use safety_postgres::legacies::conditions::{ComparisonOperator, LogicalOperator, IsInJoinedTable};
+    /// use safety_postgres::legacy::conditions::Conditions;
+    /// use safety_postgres::legacy::conditions::{ComparisonOperator, LogicalOperator, IsInJoinedTable};
     ///
     /// let mut conditions = Conditions::new();
     ///
@@ -287,7 +287,7 @@ impl Conditions {
     /// # Example
     ///
     /// ```
-    /// use safety_postgres::legacies::conditions::{Conditions, IsInJoinedTable};
+    /// use safety_postgres::legacy::conditions::{Conditions, IsInJoinedTable};
     ///
     /// let mut conditions = Conditions::new();
     /// conditions.add_condition_from_str("name", "John", "=", "first", IsInJoinedTable::No).expect("add condition failed");
@@ -377,7 +377,7 @@ impl Condition {
 
 #[cfg(test)]
 mod tests {
-    use crate::legacies::errors::ConditionError;
+    use crate::legacy::errors::ConditionError;
     use super::{Conditions, ComparisonOperator, LogicalOperator, IsInJoinedTable};
 
     /// Tests that conditions can be added properly and results in the correct condition text and statement.
