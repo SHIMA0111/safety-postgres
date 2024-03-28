@@ -1,4 +1,4 @@
-mod legacy;
+pub mod legacy;
 pub mod connector;
 pub mod utils;
 mod generator;

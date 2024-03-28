@@ -28,7 +28,3 @@ pub(super) fn row_to_json(query_result: &Vec<Row>) -> Result<String, JSONError> 
     };
     serde_json::to_string(&get_data)
 }
-
-fn execution_from_json(json: &str) {
-
-}
