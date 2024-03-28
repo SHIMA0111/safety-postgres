@@ -1,5 +1,4 @@
 use std::any::type_name;
-use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use crate::utils::errors::ConnectionConfigError;
