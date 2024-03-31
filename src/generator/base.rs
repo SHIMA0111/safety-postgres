@@ -1,3 +1,6 @@
+pub mod condition;
+pub mod join_table;
+
 pub trait Generator {
     fn get_statement(&self) -> String;
     fn get_params(&self) -> Vec<String>;
@@ -9,7 +12,15 @@ pub enum ConditionOperator {
     Greater,
     GreaterEq,
     Lower,
-    LowerEq
+    LowerEq,
+    In,
+    NotIn,
+    Like,
+    NotLike,
+    ILike,
+    NotILike,
+    IsNull,
+    IsNotNull,
 }
 
 impl ConditionOperator {
@@ -21,6 +32,14 @@ impl ConditionOperator {
             ConditionOperator::GreaterEq => ">=".to_string(),
             ConditionOperator::Lower => "<".to_string(),
             ConditionOperator::LowerEq => "<=".to_string(),
+            ConditionOperator::In => "IN".to_string(),
+            ConditionOperator::NotIn => "NOT IN".to_string(),
+            ConditionOperator::Like => "LIKE".to_string(),
+            ConditionOperator::NotLike => "NOT LIKE".to_string(),
+            ConditionOperator::ILike => "ILIKE".to_string(),
+            ConditionOperator::NotILike => "NOT ILIKE".to_string(),
+            ConditionOperator::IsNull => "IS NULL".to_string(),
+            ConditionOperator::IsNotNull => "IS NOT NULL".to_string(),
         }
     }
 }
@@ -37,4 +56,33 @@ impl ChainMethod {
             ChainMethod::Or => "OR".to_string(),
         }
     }
+}
+
+pub enum SortMethod {
+    Asc,
+    Desc
+}
+
+pub struct SortRule<'a> {
+    table_name: &'a str,
+    schema_name: Option<&'a str>,
+    column_name: &'a str,
+    sort_method: SortMethod,
+}
+
+impl SortRule<'_> {
+    pub fn get_table_name(&self) -> String {
+        match self.schema_name {
+            Some(schema) => format!("{}.{}", schema, self.table_name),
+            None => format!("{}", self.table_name),
+        }
+    }
+}
+
+pub enum Aggregation<'a> {
+    Avg(&'a str),
+    Count(&'a str),
+    Sum(&'a str),
+    Min(&'a str),
+    Max(&'a str),
 }
