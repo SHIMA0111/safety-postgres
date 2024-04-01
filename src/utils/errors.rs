@@ -26,13 +26,15 @@ impl Error for ConnectionConfigError {}
 
 #[derive(Debug, PartialEq)]
 pub enum GeneratorError {
-    InvalidTableNameError(String)
+    InvalidTableNameError(String),
+    InconsistentConfigError(String),
 }
 
 impl Display for GeneratorError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InvalidTableNameError(e) => write!(f, "Table name is invalid due to {}", e),
+            Self::InconsistentConfigError(e) => write!(f, "Configuration input is inconsistent due to {}", e),
         }
     }
 }

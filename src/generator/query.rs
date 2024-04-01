@@ -5,6 +5,7 @@ use crate::generator::base::join_table::JoinTable;
 use crate::generator::query::from::FromPhrase;
 use crate::generator::query::group_by::{GroupBy, GroupCondition};
 use crate::utils::errors::GeneratorError;
+use crate::utils::helpers::Column;
 
 mod group_by;
 mod from;
@@ -99,10 +100,27 @@ impl Generator for QueryGenerator<'_> {
 
 pub enum QueryColumns<'a> {
     AllColumns,
-    SpecifyColumns(&'a[QueryColumn<'a>])
+    SpecifyColumns(Vec<QueryColumn<'a>>)
 }
 
 pub enum QueryColumn<'a> {
-    AsIs(&'a str),
+    AsIs(Column<'a>),
     Aggregation(Aggregation<'a>),
+}
+
+impl QueryColumns<'_> {
+    fn get_query_columns_statement(&self) -> String {
+        match self {
+            QueryColumns::AllColumns => "*".to_string(),
+            QueryColumns::SpecifyColumns(columns) => {
+                todo!()
+            }
+        }
+    }
+}
+
+impl QueryColumn<'_> {
+    fn get_column_statement(&self) -> String {
+        todo!()
+    }
 }

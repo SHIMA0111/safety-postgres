@@ -1,3 +1,6 @@
+use std::fmt::{Display, Formatter};
+use crate::utils::helpers::Column;
+
 pub mod condition;
 pub mod join_table;
 
@@ -80,9 +83,21 @@ impl SortRule<'_> {
 }
 
 pub enum Aggregation<'a> {
-    Avg(&'a str),
-    Count(&'a str),
-    Sum(&'a str),
-    Min(&'a str),
-    Max(&'a str),
+    Avg(Column<'a>),
+    Count(Column<'a>),
+    Sum(Column<'a>),
+    Min(Column<'a>),
+    Max(Column<'a>),
+}
+
+impl Display for Aggregation<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Aggregation::Avg(column) => write!(f, "AVG({})", column),
+            Aggregation::Count(column) => write!(f, "COUNT({})", column),
+            Aggregation::Sum(column) => write!(f, "SUM({})", column),
+            Aggregation::Min(column) => write!(f, "MIN({})", column),
+            Aggregation::Max(column) => write!(f, "MAX({})", column),
+        }
+    }
 }
