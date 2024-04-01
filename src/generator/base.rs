@@ -26,37 +26,40 @@ pub enum ConditionOperator {
     IsNotNull,
 }
 
-impl ConditionOperator {
-    pub(crate) fn get_symbol(&self) -> String {
+impl Display for ConditionOperator {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ConditionOperator::Equal => "=".to_string(),
-            ConditionOperator::NotEqual => "!=".to_string(),
-            ConditionOperator::Greater => ">".to_string(),
-            ConditionOperator::GreaterEq => ">=".to_string(),
-            ConditionOperator::Lower => "<".to_string(),
-            ConditionOperator::LowerEq => "<=".to_string(),
-            ConditionOperator::In => "IN".to_string(),
-            ConditionOperator::NotIn => "NOT IN".to_string(),
-            ConditionOperator::Like => "LIKE".to_string(),
-            ConditionOperator::NotLike => "NOT LIKE".to_string(),
-            ConditionOperator::ILike => "ILIKE".to_string(),
-            ConditionOperator::NotILike => "NOT ILIKE".to_string(),
-            ConditionOperator::IsNull => "IS NULL".to_string(),
-            ConditionOperator::IsNotNull => "IS NOT NULL".to_string(),
+            ConditionOperator::Equal => write!(f, "{}", "="),
+            ConditionOperator::NotEqual => write!(f, "{}", "!="),
+            ConditionOperator::Greater => write!(f, "{}", ">"),
+            ConditionOperator::GreaterEq => write!(f, "{}", ">="),
+            ConditionOperator::Lower => write!(f, "{}", "<"),
+            ConditionOperator::LowerEq => write!(f, "{}", "<="),
+            ConditionOperator::In => write!(f, "{}", "IN"),
+            ConditionOperator::NotIn => write!(f, "{}", "NOT IN"),
+            ConditionOperator::Like => write!(f, "{}", "LIKE"),
+            ConditionOperator::NotLike => write!(f, "{}", "NOT LIKE"),
+            ConditionOperator::ILike => write!(f, "{}", "ILIKE"),
+            ConditionOperator::NotILike => write!(f, "{}", "NOT ILIKE"),
+            ConditionOperator::IsNull => write!(f, "{}", "IS NULL"),
+            ConditionOperator::IsNotNull => write!(f, "{}", "IS NOT NULL"),
         }
     }
 }
 
-pub enum ChainMethod {
+#[derive(Clone)]
+pub enum BindMethod {
+    FirstCondition,
     And,
-    Or
+    Or,
 }
 
-impl ChainMethod {
-    pub(crate) fn get_string(&self) -> String {
+impl Display for BindMethod {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            ChainMethod::And => "AND".to_string(),
-            ChainMethod::Or => "OR".to_string(),
+            BindMethod::And => write!(f, "{}", "AND"),
+            BindMethod::Or => write!(f, "{}", "OR"),
+            BindMethod::FirstCondition => Ok(())
         }
     }
 }
@@ -66,18 +69,60 @@ pub enum SortMethod {
     Desc
 }
 
-pub struct SortRule<'a> {
-    table_name: &'a str,
-    schema_name: Option<&'a str>,
-    column_name: &'a str,
-    sort_method: SortMethod,
+impl Display for SortMethod {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Asc => write!(f, "{}", "ASC"),
+            Self::Desc => write!(f, "{}", "DESC"),
+        }
+    }
+}
+
+pub enum SortRule<'a> {
+    OnMainTable {
+        column_name: &'a str,
+        sort_method: SortMethod,
+    },
+    SameSchemaTable {
+        table_name: &'a str,
+        column_name: &'a str,
+        sort_method: SortMethod,
+    },
+    AnotherSchemaTable {
+        schema_name: &'a str,
+        table_name: &'a str,
+        column_name: &'a str,
+        sort_method: SortMethod,
+    }
 }
 
 impl SortRule<'_> {
-    pub fn get_table_name(&self) -> String {
-        match self.schema_name {
-            Some(schema) => format!("{}.{}", schema, self.table_name),
-            None => format!("{}", self.table_name),
+    pub(crate) fn get_table_name(&self) -> String {
+        match self {
+            Self::OnMainTable {..} => "main".to_string(),
+            Self::SameSchemaTable {table_name, ..} => table_name.to_string(),
+            Self::AnotherSchemaTable {
+                schema_name,
+                table_name, ..} => format!("{}.{}", schema_name, table_name),
+        }
+    }
+
+    pub(crate) fn get_sort_statement(&self) -> String {
+        match self {
+            SortRule::OnMainTable {
+                column_name,
+                sort_method } => format!("{} {}", column_name, sort_method),
+            SortRule::SameSchemaTable {
+                table_name,
+                column_name,
+                sort_method
+            } => format!("{}.{} {}", table_name, column_name, sort_method),
+            SortRule::AnotherSchemaTable {
+                schema_name,
+                table_name,
+                column_name,
+                sort_method
+            } => format!("{}.{}.{} {}", schema_name, table_name, column_name, sort_method),
         }
     }
 }
@@ -88,6 +133,18 @@ pub enum Aggregation<'a> {
     Sum(Column<'a>),
     Min(Column<'a>),
     Max(Column<'a>),
+}
+
+impl Aggregation<'_> {
+    pub(crate) fn get_table_name(&self) -> String {
+        match self {
+            Aggregation::Avg(column) => column.get_table_name(),
+            Aggregation::Count(column) => column.get_table_name(),
+            Aggregation::Sum(column) => column.get_table_name(),
+            Aggregation::Min(column) => column.get_table_name(),
+            Aggregation::Max(column) => column.get_table_name(),
+        }
+    }
 }
 
 impl Display for Aggregation<'_> {

@@ -12,3 +12,21 @@ pub enum FromPhrase<'a> {
         sub_query: Box<QueryGenerator<'a>>,
     }
 }
+
+impl FromPhrase<'_> {
+    pub(crate) fn get_table_name(&self) -> String {
+        match self {
+            FromPhrase::NonSchemaTable { table_name } => table_name.to_string(),
+            FromPhrase::WithSchemaTable {
+                schema_name, table_name } => format!("{}.{}", schema_name, table_name),
+            FromPhrase::SubQueryAsTable { .. } => "subquery_table".to_string(),
+        }
+    }
+    pub(crate) fn get_from_statement(&self) -> String {
+        match self {
+            FromPhrase::NonSchemaTable {..} | FromPhrase::WithSchemaTable {..} =>
+                format!("FROM {}", self.get_table_name()),
+            FromPhrase::SubQueryAsTable { .. } => todo!(),
+        }
+    }
+}

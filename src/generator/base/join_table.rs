@@ -1,5 +1,39 @@
-use crate::generator::base::{ChainMethod, ConditionOperator};
+use std::fmt::Display;
+use crate::generator::base::{BindMethod, ConditionOperator};
 use crate::generator::query::QueryColumns;
+use crate::utils::helpers::Column;
+
+pub(crate) struct JoinTables<'a> {
+    main_table_name: String,
+    join_tables: Vec<JoinTable<'a>>,
+}
+
+impl <'a> JoinTables<'a> {
+    pub(crate) fn new(main_table_name: String) -> JoinTables<'a> {
+        Self {
+            main_table_name,
+            join_tables: Vec::<JoinTable<'a>>::new()
+        }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.join_tables.len()
+    }
+
+    pub(crate) fn add_join_table(&mut self, join_table: JoinTable<'a>) {
+        self.join_tables.push(join_table);
+    }
+
+    pub(crate) fn get_join_statement(&self) -> String {
+        let mut statement = Vec::<String>::new();
+
+        for join_table in &self.join_tables {
+            statement.push(join_table.get_join_statement(self.main_table_name.as_str()));
+        }
+
+        statement.join(" ")
+    }
+}
 
 pub enum JoinTable<'a> {
     SameSchemaTable{
@@ -17,7 +51,7 @@ pub enum JoinTable<'a> {
     }
 }
 
-impl JoinTable<'_> {
+impl <'a> JoinTable<'a> {
     pub(crate) fn get_table_name(&self) -> String {
         match self {
             JoinTable::SameSchemaTable {
@@ -26,6 +60,22 @@ impl JoinTable<'_> {
                 schema_name,
                 table_name, ..} => format!("{}.{}", schema_name, table_name),
         }
+    }
+
+    pub(crate) fn get_join_dist_table_names(&self) -> Vec<String> {
+        let join_columns =  match self {
+            Self::SameSchemaTable {join_columns, ..} => join_columns,
+            Self::AnotherSchemaTable {join_columns, ..} => join_columns,
+        };
+        let join_dist_table = if let JoinColumns::SpecifyColumns(columns) = join_columns {
+            columns.iter().map(|column| {
+                format!("{}", column.destination_joined_column)
+            }).collect::<Vec<String>>()
+        }
+        else {
+            Vec::new()
+        };
+        join_dist_table
     }
 
     fn get_join_type(&self) -> &JoinType {
@@ -42,7 +92,7 @@ impl JoinTable<'_> {
         }
     }
 
-    pub(crate) fn get_join_statement(&self, main_table_name: &str) -> String {
+    fn get_join_statement(&self, main_table_name: &str) -> String {
         let mut join_statement_vec: Vec<String> = Vec::new();
 
         let join_method = match self.get_join_type() {
@@ -62,15 +112,26 @@ impl JoinTable<'_> {
                 let mut join_columns_vec = Vec::new();
                 for column in columns {
                     if join_columns_vec.len() != 0 {
-                        join_columns_vec.push(column.bind_method.get_string())
+                        join_columns_vec.push(format!("{}", column.bind_method))
                     }
-                    let one_join = format!(
-                        "{}.{} {} {}.{}",
-                        main_table_name, &column.main_joined_column,
-                        column.operator.get_symbol(),
-                        table_name,
-                        &column.joined_column
-                    );
+                    let one_join = if let Column::OnMainTable {..} = &column.destination_joined_column {
+                        format!(
+                            "{}.{} {} {}.{}",
+                            main_table_name,
+                            &column.destination_joined_column,
+                            &column.operator,
+                            table_name,
+                            &column.joined_column
+                        )
+                    }
+                    else {
+                        format!(
+                            "{} {} {}.{}",
+                            &column.destination_joined_column,
+                            &column.operator,
+                            table_name,
+                            &column.joined_column)
+                    };
                     join_columns_vec.push(one_join);
                 }
                 join_columns_vec.join(" ")
@@ -88,10 +149,10 @@ pub enum JoinColumns<'a> {
 }
 
 pub struct JoinColumn<'a> {
-    main_joined_column: &'a str,
     joined_column: &'a str,
+    destination_joined_column: Column<'a>,
     operator: ConditionOperator,
-    bind_method: ChainMethod
+    bind_method: BindMethod
 }
 
 pub enum JoinType {

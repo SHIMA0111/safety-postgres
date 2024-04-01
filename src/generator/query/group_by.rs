@@ -1,7 +1,37 @@
 use crate::generator::base::{Aggregation, ConditionOperator};
 use crate::utils::helpers::Variable;
 
-pub enum GroupBy<'a> {
+pub(crate) struct Groupings<'a> {
+    groupings: Vec<Grouping<'a>>
+}
+
+impl <'a> Groupings <'a> {
+    pub(crate) fn new() -> Groupings<'a> {
+        Self {
+            groupings: Vec::<Grouping<'a>>::new(),
+        }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.groupings.len()
+    }
+
+    pub(crate) fn add_grouping(&mut self, grouping: Grouping<'a>) {
+        self.groupings.push(grouping);
+    }
+
+    pub(crate) fn get_grouping_statement(&self) -> String {
+        let grouping_statement = self.groupings
+            .iter()
+            .map(|grouping| grouping.get_table_name())
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        format!("{} {}", "GROUP BY", grouping_statement)
+    }
+}
+
+pub enum Grouping<'a> {
     OnMainTable {
         column_name: &'a str,
     },
@@ -16,15 +46,36 @@ pub enum GroupBy<'a> {
     }
 }
 
-impl GroupBy<'_> {
-    pub(in crate::generator) fn get_table_name(&self) -> String {
+impl Grouping<'_> {
+    pub(crate) fn get_table_name(&self) -> String {
         match self {
-            GroupBy::OnMainTable { .. } => "main".to_string(),
-            GroupBy::SameSchemaTable { table_name, .. } => table_name.to_string(),
-            GroupBy::AnotherSchemaTable {
+            Grouping::OnMainTable { .. } => "main".to_string(),
+            Grouping::SameSchemaTable { table_name, .. } => table_name.to_string(),
+            Grouping::AnotherSchemaTable {
                 schema_name,
                 table_name, .. } => format!("{}.{}", schema_name, table_name),
         }
+    }
+}
+
+
+pub(crate) struct GroupConditions<'a> {
+    group_conditions: Vec<GroupCondition<'a>>,
+}
+
+impl <'a> GroupConditions<'a> {
+    pub(crate) fn new() -> GroupConditions<'a> {
+        Self {
+            group_conditions: Vec::<GroupCondition<'a>>::new(),
+        }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.group_conditions.len()
+    }
+
+    pub(crate) fn add_group_condition(&mut self, group_condition: GroupCondition<'a>) {
+        self.group_conditions.push(group_condition);
     }
 }
 
@@ -43,5 +94,13 @@ impl <'a> GroupCondition<'a> {
             ref_value,
             condition_operator,
         }
+    }
+
+    pub(crate) fn get_table_name(&self) -> String {
+        self.aggregation.get_table_name()
+    }
+
+    pub(crate) fn get_grouping_condition_statement(&self) -> String {
+        todo!()
     }
 }

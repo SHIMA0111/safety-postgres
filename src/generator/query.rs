@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use crate::generator::base::{Aggregation, Generator, SortRule};
-use crate::generator::base::condition::Condition;
-use crate::generator::base::join_table::JoinTable;
+use crate::generator::base::condition::{Condition, Conditions};
+use crate::generator::base::join_table::{JoinTable, JoinTables};
 use crate::generator::query::from::FromPhrase;
-use crate::generator::query::group_by::{GroupBy, GroupCondition};
+use crate::generator::query::group_by::{Grouping, GroupCondition, Groupings, GroupConditions};
 use crate::utils::errors::GeneratorError;
 use crate::utils::helpers::Column;
 
@@ -13,10 +13,10 @@ mod from;
 pub struct QueryGenerator<'a> {
     base_table: FromPhrase<'a>,
     main_query_columns: QueryColumns<'a>,
-    join_tables: Vec<JoinTable<'a>>,
-    conditions: Vec<Condition<'a>>,
-    groupings: Vec<GroupBy<'a>>,
-    group_conditions: Vec<GroupCondition<'a>>,
+    join_tables: JoinTables<'a>,
+    conditions: Conditions<'a>,
+    groupings: Groupings<'a>,
+    group_conditions: GroupConditions<'a>,
     sort_rules: Vec<SortRule<'a>>,
     include_tables: HashSet<String>,
 }
@@ -26,46 +26,63 @@ impl<'a> QueryGenerator<'a> {
         base_table: FromPhrase<'a>,
         query_columns: QueryColumns<'a>) -> QueryGenerator<'a> {
 
+        let table_name = base_table.get_table_name();
+
         Self {
             base_table,
             main_query_columns: query_columns,
-            join_tables: Vec::new(),
-            conditions: Vec::new(),
-            groupings: Vec::new(),
-            group_conditions: Vec::new(),
+            join_tables: JoinTables::new(table_name),
+            conditions: Conditions::new(),
+            groupings: Groupings::new(),
+            group_conditions: GroupConditions::new(),
             sort_rules: Vec::new(),
             include_tables: HashSet::from_iter(vec!["main".to_string()]),
         }
     }
 
-    pub fn add_join_table(&mut self, join_table: JoinTable<'a>) {
+    pub fn add_join_table(&mut self, join_table: JoinTable<'a>) -> Result<(), GeneratorError> {
         let table = join_table.get_table_name();
+
+        let join_dist_tables = join_table.get_join_dist_table_names();
+        for join_dist_table in join_dist_tables {
+            if let Err(e) = self.table_validation(join_dist_table.as_str()) {
+                return Err(e)
+            }
+        }
+
         self.include_tables.insert(table);
-        self.join_tables.push(join_table);
+        self.join_tables.add_join_table(join_table);
+        Ok(())
     }
 
     pub fn add_condition(&mut self, condition: Condition<'a>) -> Result<(), GeneratorError> {
         let table_name = condition.get_table_name();
 
         match self.table_validation(table_name.as_str()) {
-            Ok(_) => self.conditions.push(condition),
+            Ok(_) => self.conditions.add_condition(condition)?,
             Err(e) => return Err(e)
         }
         Ok(())
     }
 
-    pub fn add_grouping(&mut self, group_by: GroupBy<'a>) -> Result<(), GeneratorError> {
-        let table_name = group_by.get_table_name();
+    pub fn add_grouping(&mut self, grouping: Grouping<'a>) -> Result<(), GeneratorError> {
+        let table_name = grouping.get_table_name();
 
         match self.table_validation(table_name.as_str()) {
-            Ok(_) => self.groupings.push(group_by),
+            Ok(_) => self.groupings.add_grouping(grouping),
             Err(e) => return Err(e),
         }
         Ok(())
     }
 
-    pub fn add_aggregation_condition(&mut self, aggregation_condition: GroupCondition<'a>) {
-        self.group_conditions.push(aggregation_condition);
+    pub fn add_aggregation_condition(&mut self, aggregation_condition: GroupCondition<'a>) -> Result<(), GeneratorError> {
+        let table_name = aggregation_condition.get_table_name();
+
+        match self.table_validation(table_name.as_str()) {
+            Ok(_) => self.group_conditions.add_group_condition(aggregation_condition),
+            Err(e) => return Err(e),
+        }
+        Ok(())
     }
 
     pub fn add_sort_rule(&mut self, sort_rule: SortRule<'a>) -> Result<(), GeneratorError> {
@@ -112,7 +129,7 @@ impl QueryColumns<'_> {
     fn get_query_columns_statement(&self) -> String {
         match self {
             QueryColumns::AllColumns => "*".to_string(),
-            QueryColumns::SpecifyColumns(columns) => {
+            QueryColumns::SpecifyColumns(..) => {
                 todo!()
             }
         }
