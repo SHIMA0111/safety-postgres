@@ -1,14 +1,14 @@
 use crate::generator::base::{Aggregation, ConditionOperator};
-use crate::utils::helpers::Variable;
+use crate::utils::helpers::{Column, Variable};
 
 pub(crate) struct Groupings<'a> {
-    groupings: Vec<Grouping<'a>>
+    groupings: Vec<&'a Column<'a>>,
 }
 
 impl <'a> Groupings <'a> {
     pub(crate) fn new() -> Groupings<'a> {
         Self {
-            groupings: Vec::<Grouping<'a>>::new(),
+            groupings: Vec::<&'a Column<'a>>::new(),
         }
     }
 
@@ -16,14 +16,14 @@ impl <'a> Groupings <'a> {
         self.groupings.len()
     }
 
-    pub(crate) fn add_grouping(&mut self, grouping: Grouping<'a>) {
-        self.groupings.push(grouping);
+    pub(crate) fn add_grouping(&mut self, grouping_column: &'a Column<'a>) {
+        self.groupings.push(grouping_column);
     }
 
     pub(crate) fn get_grouping_statement(&self) -> String {
         let grouping_statement = self.groupings
             .iter()
-            .map(|grouping| grouping.get_table_name())
+            .map(|grouping| format!("{}", grouping))
             .collect::<Vec<String>>()
             .join(", ");
 
@@ -31,42 +31,14 @@ impl <'a> Groupings <'a> {
     }
 }
 
-pub enum Grouping<'a> {
-    OnMainTable {
-        column_name: &'a str,
-    },
-    SameSchemaTable {
-        table_name: &'a str,
-        column_name: &'a str,
-    },
-    AnotherSchemaTable {
-        schema_name: &'a str,
-        table_name: &'a str,
-        column_name: &'a str,
-    }
-}
-
-impl Grouping<'_> {
-    pub(crate) fn get_table_name(&self) -> String {
-        match self {
-            Grouping::OnMainTable { .. } => "main".to_string(),
-            Grouping::SameSchemaTable { table_name, .. } => table_name.to_string(),
-            Grouping::AnotherSchemaTable {
-                schema_name,
-                table_name, .. } => format!("{}.{}", schema_name, table_name),
-        }
-    }
-}
-
-
 pub(crate) struct GroupConditions<'a> {
-    group_conditions: Vec<GroupCondition<'a>>,
+    group_conditions: Vec<&'a GroupCondition<'a>>,
 }
 
 impl <'a> GroupConditions<'a> {
     pub(crate) fn new() -> GroupConditions<'a> {
         Self {
-            group_conditions: Vec::<GroupCondition<'a>>::new(),
+            group_conditions: Vec::<&'a GroupCondition<'a>>::new(),
         }
     }
 
@@ -74,21 +46,31 @@ impl <'a> GroupConditions<'a> {
         self.group_conditions.len()
     }
 
-    pub(crate) fn add_group_condition(&mut self, group_condition: GroupCondition<'a>) {
+    pub(crate) fn add_group_condition(&mut self, group_condition: &'a GroupCondition<'a>) {
         self.group_conditions.push(group_condition);
+    }
+
+    pub(crate) fn get_grouping_condition_statement(&self) -> String {
+        let mut statement_vec = vec!["HAVING".to_string()];
+
+        for condition in &self.group_conditions {
+            statement_vec.push(condition.get_grouping_condition());
+        }
+
+        statement_vec.join(" ")
     }
 }
 
 pub struct GroupCondition<'a> {
-    aggregation: Aggregation<'a>,
-    ref_value: Variable,
+    aggregation: &'a Aggregation<'a>,
+    ref_value: &'a Variable,
     condition_operator: ConditionOperator,
 }
 
 impl <'a> GroupCondition<'a> {
-    pub fn new(aggregation: Aggregation<'a>,
+    pub fn new(aggregation: &'a Aggregation<'a>,
                condition_operator: ConditionOperator,
-               ref_value: Variable) -> GroupCondition<'a> {
+               ref_value: &'a Variable) -> GroupCondition<'a> {
         Self {
             aggregation,
             ref_value,
@@ -100,7 +82,7 @@ impl <'a> GroupCondition<'a> {
         self.aggregation.get_table_name()
     }
 
-    pub(crate) fn get_grouping_condition_statement(&self) -> String {
-        todo!()
+    pub(crate) fn get_grouping_condition(&self) -> String {
+        format!("{} {} {}", self.aggregation, self.condition_operator, self.ref_value)
     }
 }

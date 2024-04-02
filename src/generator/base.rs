@@ -47,7 +47,7 @@ impl Display for ConditionOperator {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum BindMethod {
     FirstCondition,
     And,
@@ -78,52 +78,53 @@ impl Display for SortMethod {
     }
 }
 
-pub enum SortRule<'a> {
-    OnMainTable {
-        column_name: &'a str,
-        sort_method: SortMethod,
-    },
-    SameSchemaTable {
-        table_name: &'a str,
-        column_name: &'a str,
-        sort_method: SortMethod,
-    },
-    AnotherSchemaTable {
-        schema_name: &'a str,
-        table_name: &'a str,
-        column_name: &'a str,
-        sort_method: SortMethod,
+pub(crate) struct SortRules<'a> {
+    sort_rules: Vec<&'a SortRule<'a>>,
+}
+
+impl <'a> SortRules<'a> {
+    pub(crate) fn new() -> SortRules<'a> {
+        SortRules { sort_rules: Vec::<&'a SortRule<'a>>::new() }
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.sort_rules.len()
+    }
+
+    pub(crate) fn add_sort_rule(&mut self, sort_rule: &'a SortRule<'a>) {
+        self.sort_rules.push(sort_rule);
+    }
+
+    pub(crate) fn get_sort_rule_statement(&self) -> String {
+        let sort_columns =  self.sort_rules
+            .iter()
+            .map(|sort_rule| sort_rule.get_sort_statement())
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        format!("ORDER BY {}", sort_columns)
     }
 }
 
-impl SortRule<'_> {
-    pub(crate) fn get_table_name(&self) -> String {
-        match self {
-            Self::OnMainTable {..} => "main".to_string(),
-            Self::SameSchemaTable {table_name, ..} => table_name.to_string(),
-            Self::AnotherSchemaTable {
-                schema_name,
-                table_name, ..} => format!("{}.{}", schema_name, table_name),
+pub struct  SortRule<'a> {
+    column: &'a Column<'a>,
+    sort_method: SortMethod,
+}
+
+impl <'a> SortRule<'a> {
+    pub fn new(column: &'a Column<'a>, sort_method: SortMethod) -> SortRule<'a> {
+        Self {
+            column,
+            sort_method
         }
     }
 
+    pub(crate) fn get_table_name(&self) -> String {
+        self.column.get_table_name()
+    }
+
     pub(crate) fn get_sort_statement(&self) -> String {
-        match self {
-            SortRule::OnMainTable {
-                column_name,
-                sort_method } => format!("{} {}", column_name, sort_method),
-            SortRule::SameSchemaTable {
-                table_name,
-                column_name,
-                sort_method
-            } => format!("{}.{} {}", table_name, column_name, sort_method),
-            SortRule::AnotherSchemaTable {
-                schema_name,
-                table_name,
-                column_name,
-                sort_method
-            } => format!("{}.{}.{} {}", schema_name, table_name, column_name, sort_method),
-        }
+        format!("{} {}", self.column, self.sort_method)
     }
 }
 

@@ -28,6 +28,7 @@ impl Error for ConnectionConfigError {}
 pub enum GeneratorError {
     InvalidTableNameError(String),
     InconsistentConfigError(String),
+    InvalidInputError(String),
 }
 
 impl Display for GeneratorError {
@@ -35,6 +36,7 @@ impl Display for GeneratorError {
         match self {
             Self::InvalidTableNameError(e) => write!(f, "Table name is invalid due to {}", e),
             Self::InconsistentConfigError(e) => write!(f, "Configuration input is inconsistent due to {}", e),
+            Self::InvalidInputError(e) => write!(f, "Input data is invalid due to {}", e),
         }
     }
 }
