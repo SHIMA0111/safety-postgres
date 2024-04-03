@@ -1,5 +1,9 @@
 use std::fmt::{Display, Formatter};
-use crate::utils::helpers::Column;
+use std::ops::Add;
+use crate::generator::query::QueryGenerator;
+use crate::{Column, Variable};
+use crate::utils::errors::GeneratorError;
+use crate::utils::helpers::check_aggregation;
 
 pub mod condition;
 pub mod join_table;
@@ -81,19 +85,19 @@ impl Display for SortMethod {
 }
 
 pub(crate) struct SortRules<'a> {
-    sort_rules: Vec<&'a SortRule<'a>>,
+    sort_rules: Vec<SortRule<'a>>,
 }
 
 impl <'a> SortRules<'a> {
     pub(crate) fn new() -> SortRules<'a> {
-        SortRules { sort_rules: Vec::<&'a SortRule<'a>>::new() }
+        SortRules { sort_rules: Vec::<SortRule<'a>>::new() }
     }
 
     pub(crate) fn len(&self) -> usize {
         self.sort_rules.len()
     }
 
-    pub(crate) fn add_sort_rule(&mut self, sort_rule: &'a SortRule<'a>) {
+    pub(crate) fn add_sort_rule(&mut self, sort_rule: SortRule<'a>) {
         self.sort_rules.push(sort_rule);
     }
 
@@ -159,5 +163,100 @@ impl Display for Aggregation<'_> {
             Aggregation::Min(column) => write!(f, "MIN({})", column),
             Aggregation::Max(column) => write!(f, "MAX({})", column),
         }
+    }
+}
+
+pub enum ReferenceValue<'a> {
+    Variable(Variable),
+    SubQueryAggregation(QueryGenerator<'a>)
+}
+
+impl ReferenceValue<'_> {
+    pub(crate) fn get_parameter_num(&self) -> u16 {
+        match self {
+            Self::Variable(_) => 1,
+            Self::SubQueryAggregation(value) => value.get_parameter_num(),
+        }
+    }
+}
+
+impl From<Variable> for ReferenceValue<'_> {
+    fn from(value: Variable) -> Self {
+        ReferenceValue::Variable(value)
+    }
+}
+
+impl <'a> TryFrom<QueryGenerator<'a>> for ReferenceValue<'a> {
+    type Error = GeneratorError;
+
+    fn try_from(value: QueryGenerator<'a>) -> Result<Self, Self::Error> {
+        let parameter_str = value.get_query_columns();
+        let query_columns_vec: Vec<String> =
+            parameter_str.split(", ").map(|str| str.to_string()).collect();
+
+        if query_columns_vec.len() != 1 {
+            return Err(
+                GeneratorError::InconsistentConfigError(
+                    format!(
+                        "SubQuery for condition value should have only 1 value \
+                            but input generator has '{}' columns.", parameter_str)));
+        }
+        else if !check_aggregation(query_columns_vec[0].clone()) {
+            return Err(
+                GeneratorError::InconsistentConfigError(
+                    format!(
+                        "SubQuery for condition value should have only 1 record \
+                            so please use aggregation but input is '{}' column",
+                        query_columns_vec[0])))
+        }
+        Ok(ReferenceValue::SubQueryAggregation(value))
+    }
+
+}
+
+impl Display for ReferenceValue<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Variable(value) => write!(f, "{}", value),
+            Self::SubQueryAggregation(value) => write!(f, "{}", value.get_statement()),
+        }
+    }
+}
+
+pub struct Parameters {
+    parameters: Vec<Variable>,
+}
+
+impl Parameters {
+    fn new() -> Self {
+        Self {
+            parameters: Vec::new(),
+        }
+    }
+
+    fn push(&mut self, value: Variable) {
+        self.parameters.push(value);
+    }
+
+    fn len(&self) -> usize {
+        self.parameters.len()
+    }
+}
+
+impl From<Vec<Variable>> for Parameters {
+    fn from(value: Vec<Variable>) -> Self {
+        Self {
+            parameters: value
+        }
+    }
+}
+
+impl Add for Parameters {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        let mut parameters = self.parameters;
+        parameters.extend(rhs.parameters);
+
+        Self { parameters }
     }
 }

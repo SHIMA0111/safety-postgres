@@ -1,6 +1,6 @@
 use crate::generator::base::Aggregation;
 use crate::utils::errors::GeneratorError;
-use crate::utils::helpers::{Column, Table};
+use crate::{Column, Table};
 
 pub enum QueryColumns<'a> {
     AllColumns(&'a Table<'a>),

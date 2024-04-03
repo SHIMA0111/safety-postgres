@@ -1,16 +1,17 @@
 use std::fmt::Display;
 use crate::generator::base::{BindMethod, ConditionOperator};
 use crate::generator::query::query_column::QueryColumns;
-use crate::utils::helpers::{Column, Pair, Table};
+use crate::utils::helpers::Pair;
+use crate::{Column, Table};
 
 pub(crate) struct JoinTables<'a> {
-    join_tables: Vec<&'a JoinTable<'a>>,
+    join_tables: Vec<JoinTable<'a>>,
 }
 
 impl <'a> JoinTables<'a> {
     pub(crate) fn new() -> JoinTables<'a> {
         Self {
-            join_tables: Vec::<&'a JoinTable<'a>>::new()
+            join_tables: Vec::<JoinTable<'a>>::new()
         }
     }
 
@@ -18,7 +19,7 @@ impl <'a> JoinTables<'a> {
         self.join_tables.len()
     }
 
-    pub(crate) fn add_join_table(&mut self, join_table: &'a JoinTable<'a>) {
+    pub(crate) fn add_join_table(&mut self, join_table: JoinTable<'a>) {
         self.join_tables.push(join_table);
     }
 
