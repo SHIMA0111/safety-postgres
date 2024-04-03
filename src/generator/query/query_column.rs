@@ -8,25 +8,35 @@ pub enum QueryColumns<'a> {
 }
 
 impl <'a> QueryColumns<'a> {
-    pub fn new(all_column: bool, table: Option<&'a Table<'a>>) -> Result<QueryColumns<'a>, GeneratorError> {
-        let query_columns = if all_column {
-            match table {
-                Some(table) => QueryColumns::AllColumns(table),
-                None => return Err(GeneratorError::InvalidInputError("When 'all_column' is enabled, you need to input valid Table reference as table.".to_string()))
-            }
-        } else {
-            QueryColumns::SpecifyColumns(Vec::new())
-        };
-
-        Ok(query_columns)
+    pub fn create_all_columns(table: &'a Table<'a>) -> QueryColumns<'a> {
+        QueryColumns::AllColumns(table)
     }
 
-    pub fn add_query_column(&mut self, query_column: QueryColumn<'a>) -> Result<(), GeneratorError> {
-        match self {
-            Self::AllColumns(_) => return Err(
+    pub fn create_specify_columns() -> QueryColumns<'a> {
+        QueryColumns::SpecifyColumns(Vec::<QueryColumn>::new())
+    }
+
+    pub fn add_as_is_column(&mut self, column: &'a Column<'a>) -> Result<(), GeneratorError> {
+        self.validate_self()?;
+        if let QueryColumns::SpecifyColumns(vec) = self {
+            vec.push(QueryColumn::AsIs(column));
+        }
+        Ok(())
+    }
+
+    pub fn add_aggregation_column(&mut self, aggregation_column: &'a Aggregation<'a>) -> Result<(), GeneratorError> {
+        self.validate_self()?;
+        if let QueryColumns::SpecifyColumns(vec) = self {
+            vec.push(QueryColumn::Aggregation(aggregation_column));
+        }
+        Ok(())
+    }
+
+    fn validate_self(&self) -> Result<(), GeneratorError> {
+        if let QueryColumns::AllColumns(_) = self {
+            return Err(
                 GeneratorError::InconsistentConfigError(
-                    "This QueryColumns specify all columns so you can't add column.".to_string())),
-            Self::SpecifyColumns(columns) => columns.push(query_column),
+                    "This QueryColumns specify all columns so you can't add column.".to_string()))
         }
         Ok(())
     }

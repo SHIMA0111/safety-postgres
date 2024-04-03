@@ -46,6 +46,72 @@ pub enum Variable {
     Bool(bool),
 }
 
+impl From<String> for Variable {
+    fn from(value: String) -> Self {
+        Self::Text(value)
+    }
+}
+
+impl From<i16> for Variable {
+    fn from(value: i16) -> Self {
+        Self::SmallInt(value)
+    }
+}
+
+impl From<i32> for Variable {
+    fn from(value: i32) -> Self {
+        Self::Int(value)
+    }
+}
+
+impl From<i64> for Variable {
+    fn from(value: i64) -> Self {
+        Self::BigInt(value)
+    }
+}
+
+impl From<f32> for Variable {
+    fn from(value: f32) -> Self {
+        Self::Float(value)
+    }
+}
+
+impl From<f64> for Variable {
+    fn from(value: f64) -> Self {
+        Self::Double(value)
+    }
+}
+
+impl From<Decimal> for Variable {
+    fn from(value: Decimal) -> Self {
+        Self::Decimal(value)
+    }
+}
+
+impl From<NaiveDate> for Variable {
+    fn from(value: NaiveDate) -> Self {
+        Self::Date(value)
+    }
+}
+
+impl From<NaiveDateTime> for Variable {
+    fn from(value: NaiveDateTime) -> Self {
+        Self::DateTime(value)
+    }
+}
+
+impl From<NaiveTime> for Variable {
+    fn from(value: NaiveTime) -> Self {
+        Self::Time(value)
+    }
+}
+
+impl From<bool> for Variable {
+    fn from(value: bool) -> Self {
+        Self::Bool(value)
+    }
+}
+
 impl Display for Variable {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

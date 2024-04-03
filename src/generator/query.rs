@@ -117,7 +117,7 @@ impl Generator for QueryGenerator<'_> {
                 columns_vec.push(self.join_tables.get_query_columns());
                 join_tables_vec.push(self.join_tables.get_join_statement());
             }
-            (columns_vec.join(" ,"), join_tables_vec.join(" "))
+            (columns_vec.join(", "), join_tables_vec.join(" "))
         };
         let from_statement = format!("FROM {}", self.base_table);
 

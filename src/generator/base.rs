@@ -9,6 +9,7 @@ pub trait Generator {
     fn get_params(&self) -> Vec<String>;
 }
 
+#[derive(Copy, Clone)]
 pub enum ConditionOperator {
     Equal,
     NotEqual,
@@ -47,7 +48,7 @@ impl Display for ConditionOperator {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub enum BindMethod {
     FirstCondition,
     And,
@@ -64,6 +65,7 @@ impl Display for BindMethod {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum SortMethod {
     Asc,
     Desc

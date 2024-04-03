@@ -42,7 +42,7 @@ impl <'a> JoinTables<'a> {
 pub struct JoinTable<'a> {
     table: &'a Table<'a>,
     query_columns: &'a QueryColumns<'a>,
-    join_columns: &'a[JoinColumn<'a>],
+    join_columns: Vec<JoinColumn<'a>>,
     join_type: JoinType,
 }
 
@@ -66,10 +66,23 @@ impl <'a> JoinTable<'a> {
     pub fn new(
         table: &'a Table<'a>,
         query_columns: &'a QueryColumns<'a>,
-        join_columns: &'a[JoinColumn<'a>],
         join_type: JoinType
     ) -> JoinTable<'a> {
-        Self { table, query_columns, join_columns, join_type }
+        Self {
+            table,
+            query_columns,
+            join_columns: Vec::<JoinColumn<'a>>::new(),
+            join_type }
+    }
+
+    pub fn add_join_columns(
+        &mut self, src_dist_column: Pair<&'a Column<'a>>,
+        join_condition: ConditionOperator,
+        bind_method: BindMethod) {
+
+        self.join_columns.push(
+            JoinColumn::new(src_dist_column, join_condition, bind_method)
+        );
     }
 
     pub(crate) fn get_table_name(&self) -> String {
@@ -91,7 +104,7 @@ impl <'a> JoinTable<'a> {
         };
 
         let mut join_columns_vec = Vec::new();
-        for join_column in self.join_columns {
+        for join_column in &self.join_columns {
             if join_columns_vec.len() != 0 {
                 join_columns_vec.push(format!("{}", join_column.bind_method))
             }
