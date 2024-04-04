@@ -1,6 +1,6 @@
-use crate::generator::base::{BindMethod, ConditionOperator, ReferenceValue};
+use crate::generator::base::{BindMethod, ConditionOperator, GeneratorPlaceholder, GeneratorPlaceholderWrapper, MainGenerator, Parameters, ReferenceValue};
 use crate::utils::errors::GeneratorError;
-use crate::{Column, Variable};
+use crate::Column;
 
 pub(crate) struct Conditions<'a> {
     conditions: Vec<Condition<'a>>,
@@ -13,10 +13,6 @@ impl <'a> Conditions<'a> {
             conditions: Vec::<Condition<'a>>::new(),
             bind_methods: Vec::<BindMethod>::new(),
         }
-    }
-
-    pub(crate) fn len(&self) -> usize {
-        self.conditions.len()
     }
 
     pub(crate) fn add_condition(&mut self,
@@ -39,16 +35,34 @@ impl <'a> Conditions<'a> {
         self.conditions.push(condition);
         Ok(())
     }
+}
 
-    pub(crate) fn get_condition_statement(&self, start_placeholder_num: u16) -> String {
+impl GeneratorPlaceholderWrapper for Conditions<'_> {
+    fn get_total_statement(&self, start_placeholder: u16) -> String {
         let mut statement_vec = vec!["WHERE".to_string()];
 
-        for (idx, (condition, bind_method)) in self.conditions.iter().zip(&self.bind_methods).enumerate() {
+        let mut index = start_placeholder;
+
+        for (condition, bind_method) in self.conditions.iter().zip(&self.bind_methods) {
             statement_vec.push(format!("{}", bind_method));
-            statement_vec.push(condition.get_condition_statement(idx as u16 + start_placeholder_num));
+            statement_vec.push(condition.get_statement(index));
+            index += condition.get_parameters_number();
         }
 
         statement_vec.join(" ")
+    }
+
+    fn get_all_params(&self) -> Parameters {
+        let mut params = Parameters::new();
+
+        for condition in &self.conditions {
+            params += condition.get_params();
+        }
+        params
+    }
+
+    fn len(&self) -> usize {
+        self.conditions.len()
     }
 }
 
@@ -70,20 +84,27 @@ impl <'a> Condition<'a> {
             operator: condition_operator,
         }
     }
+}
 
-    pub(crate) fn get_table_name(&self) -> String {
-        self.column.get_table_name()
+impl GeneratorPlaceholder for Condition<'_> {
+    fn get_statement(&self, start_placeholder_number: u16) -> String {
+        match &self.ref_value {
+            ReferenceValue::Variable(_) => format!("{} {} ${}", self.column, self.operator, start_placeholder_number),
+            ReferenceValue::SubQueryAggregation(query) => {
+                query.get_statement()
+            }
+        }
     }
 
-    pub(crate) fn get_condition_statement(&self, placeholder_num: u16) -> String {
-        todo!()
+    fn get_params(&self) -> Parameters {
+        self.ref_value.get_parameters()
     }
 
-    pub(crate) fn get_condition_parameter(&self) -> Variable {
-        todo!()
-    }
-
-    pub fn get_parameter_num(&self) -> u16 {
+    fn get_parameters_number(&self) -> u16 {
         self.column.get_parameter_num() + self.ref_value.get_parameter_num()
+    }
+
+    fn get_table_name(&self) -> String {
+        self.column.get_table_name()
     }
 }

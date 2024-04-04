@@ -1,4 +1,4 @@
-use crate::generator::base::Aggregation;
+use crate::generator::base::{Aggregation, Parameters};
 use crate::utils::errors::GeneratorError;
 use crate::{Column, Table};
 
@@ -48,7 +48,7 @@ impl <'a> QueryColumns<'a> {
                 let mut query_columns_vec = Vec::new();
 
                 for column in columns {
-                    query_columns_vec.push(column.get_column_statement());
+                    query_columns_vec.push(column.get_statement());
                 }
                 query_columns_vec.join(", ")
             }
@@ -62,10 +62,14 @@ pub enum QueryColumn<'a> {
 }
 
 impl QueryColumn<'_> {
-    fn get_column_statement(&self) -> String {
+    fn get_statement(&self) -> String {
         match self {
             Self::AsIs(column) => format!("{}", column),
             Self::Aggregation(column) => format!("{}", column),
         }
+    }
+
+    fn get_params(&self) -> Parameters {
+        Parameters::new()
     }
 }

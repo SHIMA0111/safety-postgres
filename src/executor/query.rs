@@ -2,7 +2,7 @@ use std::error::Error;
 use tokio_postgres::Row;
 use crate::connector::Connector;
 use crate::executor::base::Executor;
-use crate::generator::base::Generator;
+use crate::generator::base::MainGenerator;
 
 struct Query {
     connector: Connector,
@@ -19,7 +19,7 @@ impl Executor for Query {
 
     async fn execute<T, R, E>(&self, generator: T) -> Result<R, E>
         where
-            T: Generator, E: Error
+            T: MainGenerator, E: Error
     {
         todo!()
     }

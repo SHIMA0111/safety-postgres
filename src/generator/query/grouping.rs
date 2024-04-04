@@ -1,5 +1,5 @@
-use crate::generator::base::{Aggregation, ConditionOperator, ReferenceValue};
-use crate::{Column, Variable};
+use crate::generator::base::{Aggregation, ConditionOperator, GeneratorPlaceholder, GeneratorPlaceholderWrapper, MainGenerator, Parameters, ReferenceValue};
+use crate::Column;
 
 pub(crate) struct Groupings<'a> {
     groupings: Vec<&'a Column<'a>>,
@@ -42,22 +42,37 @@ impl <'a> GroupConditions<'a> {
         }
     }
 
-    pub(crate) fn len(&self) -> usize {
-        self.group_conditions.len()
-    }
-
     pub(crate) fn add_group_condition(&mut self, group_condition: GroupCondition<'a>) {
         self.group_conditions.push(group_condition);
     }
+}
 
-    pub(crate) fn get_grouping_condition_statement(&self, start_placeholder_num: u16) -> String {
+impl GeneratorPlaceholderWrapper for GroupConditions<'_> {
+    fn get_total_statement(&self, start_placeholder: u16) -> String {
         let mut statement_vec = vec!["HAVING".to_string()];
 
-        for (idx, condition) in self.group_conditions.iter().enumerate() {
-            statement_vec.push(condition.get_grouping_condition(idx as u16 + start_placeholder_num));
+        let mut index = start_placeholder;
+
+        for condition in &self.group_conditions {
+            statement_vec.push(condition.get_statement(index));
+            index += condition.get_parameters_number();
         }
 
         statement_vec.join(" ")
+    }
+
+    fn get_all_params(&self) -> Parameters {
+        let mut params = Parameters::new();
+
+        for grouping_condition in &self.group_conditions {
+            params += grouping_condition.get_params();
+        }
+
+        params
+    }
+
+    fn len(&self) -> usize {
+        self.group_conditions.len()
     }
 }
 
@@ -77,20 +92,25 @@ impl <'a> GroupCondition<'a> {
             condition_operator,
         }
     }
+}
 
-    pub(crate) fn get_table_name(&self) -> String {
-        self.aggregation.get_table_name()
+impl GeneratorPlaceholder for GroupCondition<'_> {
+    fn get_statement(&self, start_placeholder_number: u16) -> String {
+        match &self.ref_value {
+            ReferenceValue::Variable(_) => format!("{} {} ${}", self.aggregation, self.condition_operator, start_placeholder_number),
+            ReferenceValue::SubQueryAggregation(query) => query.get_statement()
+        }
     }
 
-    pub(crate) fn get_grouping_condition(&self, placeholder_num: u16) -> String {
-        todo!()
+    fn get_params(&self) -> Parameters {
+        self.ref_value.get_parameters()
     }
 
-    pub(crate) fn get_grouping_condition_parameter(&self) -> Variable {
-        todo!()
-    }
-
-    pub fn get_parameter_num(&self) -> u16 {
+    fn get_parameters_number(&self) -> u16 {
         self.ref_value.get_parameter_num()
+    }
+
+    fn get_table_name(&self) -> String {
+        self.aggregation.get_table_name()
     }
 }

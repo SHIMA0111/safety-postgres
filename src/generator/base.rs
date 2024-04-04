@@ -1,5 +1,5 @@
 use std::fmt::{Display, Formatter};
-use std::ops::Add;
+use std::ops::{Add, AddAssign};
 use crate::generator::query::QueryGenerator;
 use crate::{Column, Variable};
 use crate::utils::errors::GeneratorError;
@@ -8,9 +8,23 @@ use crate::utils::helpers::check_aggregation;
 pub mod condition;
 pub mod join_table;
 
-pub trait Generator {
+pub trait MainGenerator {
     fn get_statement(&self) -> String;
-    fn get_params(&self) -> Vec<String>;
+    fn get_params(&self) -> Parameters;
+    fn get_all_parameters_num(&self) -> u16;
+}
+
+pub trait GeneratorPlaceholder {
+    fn get_statement(&self, start_placeholder_number: u16) -> String;
+    fn get_params(&self) -> Parameters;
+    fn get_parameters_number(&self) -> u16;
+    fn get_table_name(&self) -> String;
+}
+
+pub trait GeneratorPlaceholderWrapper {
+    fn get_total_statement(&self, start_placeholder: u16) -> String;
+    fn get_all_params(&self) -> Parameters;
+    fn len(&self) -> usize;
 }
 
 #[derive(Copy, Clone)]
@@ -175,7 +189,14 @@ impl ReferenceValue<'_> {
     pub(crate) fn get_parameter_num(&self) -> u16 {
         match self {
             Self::Variable(_) => 1,
-            Self::SubQueryAggregation(value) => value.get_parameter_num(),
+            Self::SubQueryAggregation(value) => value.get_all_parameters_num(),
+        }
+    }
+
+    pub(crate) fn get_parameters(&self) -> Parameters {
+        match self {
+            Self::Variable(variable) => Parameters::from(vec![variable.clone()]),
+            Self::SubQueryAggregation(query) => query.get_params(),
         }
     }
 }
@@ -228,18 +249,26 @@ pub struct Parameters {
 }
 
 impl Parameters {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             parameters: Vec::new(),
         }
     }
 
-    fn push(&mut self, value: Variable) {
+    pub fn push(&mut self, value: Variable) {
         self.parameters.push(value);
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.parameters.len()
+    }
+
+    pub fn join(&self, delimiter: &str) -> String {
+        self.parameters
+            .iter()
+            .map(|param| format!("{}", param))
+            .collect::<Vec<String>>()
+            .join(delimiter)
     }
 }
 
@@ -258,5 +287,17 @@ impl Add for Parameters {
         parameters.extend(rhs.parameters);
 
         Self { parameters }
+    }
+}
+
+impl AddAssign for Parameters {
+    fn add_assign(&mut self, rhs: Self) {
+        self.parameters.extend(rhs.parameters)
+    }
+}
+
+impl Display for Parameters {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.join(", "))
     }
 }

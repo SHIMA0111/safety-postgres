@@ -1,13 +1,14 @@
 use std::collections::HashSet;
-use crate::generator::base::{BindMethod, Generator, SortRule, SortRules};
+use std::ops::AddAssign;
+use crate::generator::base::{BindMethod, GeneratorPlaceholder, GeneratorPlaceholderWrapper, MainGenerator, Parameters, SortRule, SortRules};
 use crate::generator::base::condition::{Condition, Conditions};
 use crate::generator::base::join_table::{JoinTable, JoinTables};
-use crate::generator::query::group_by::{GroupCondition, Groupings, GroupConditions};
+use crate::generator::query::grouping::{GroupCondition, Groupings, GroupConditions};
 use crate::generator::query::query_column::QueryColumns;
 use crate::utils::errors::GeneratorError;
 use crate::{Column, Table};
 
-pub mod group_by;
+pub mod grouping;
 pub mod query_column;
 
 pub struct QueryGenerator<'a> {
@@ -19,7 +20,7 @@ pub struct QueryGenerator<'a> {
     group_conditions: GroupConditions<'a>,
     sort_rules: SortRules<'a>,
     include_tables: HashSet<String>,
-    parameter_count: u16,
+    placeholder_start_num: u16,
 }
 
 impl<'a> QueryGenerator<'a> {
@@ -38,7 +39,7 @@ impl<'a> QueryGenerator<'a> {
             group_conditions: GroupConditions::new(),
             sort_rules: SortRules::new(),
             include_tables: HashSet::from_iter(vec![main_table]),
-            parameter_count: base_table.get_parameter_num(),
+            placeholder_start_num: 1,
         }
     }
 
@@ -63,7 +64,6 @@ impl<'a> QueryGenerator<'a> {
 
         match self.table_validation(table_name.as_str()) {
             Ok(_) => {
-                self.parameter_count += condition.get_parameter_num();
                 self.conditions.add_condition(condition, bind_method)?
             },
             Err(e) => return Err(e)
@@ -86,7 +86,6 @@ impl<'a> QueryGenerator<'a> {
 
         match self.table_validation(table_name.as_str()) {
             Ok(_) => {
-                self.parameter_count += aggregation_condition.get_parameter_num();
                 self.group_conditions.add_group_condition(aggregation_condition)
             },
             Err(e) => return Err(e),
@@ -105,10 +104,6 @@ impl<'a> QueryGenerator<'a> {
         Ok(())
     }
 
-    pub(crate) fn get_parameter_num(&self) -> u16 {
-        self.parameter_count
-    }
-
     pub(crate) fn get_query_columns(&self) -> String {
         let mut  query_columns = vec![self.main_query_columns.get_query_columns_statement()];
         if self.join_tables.len() != 0 {
@@ -116,6 +111,10 @@ impl<'a> QueryGenerator<'a> {
         }
 
         query_columns.join(", ")
+    }
+
+    fn update_placeholder_num(&mut self, placeholder_start_num: u16) {
+        self.placeholder_start_num = placeholder_start_num
     }
 
     fn table_validation(&self, table_name: &str) -> Result<(), GeneratorError> {
@@ -129,16 +128,16 @@ impl<'a> QueryGenerator<'a> {
     }
 }
 
-impl Generator for QueryGenerator<'_> {
+impl MainGenerator for QueryGenerator<'_> {
     fn get_statement(&self) -> String {
-        let mut parameter_counter = 1;
+        let mut parameter_counter = self.placeholder_start_num;
         let mut base_vec = vec!["SELECT".to_string()];
         let (query_columns, join_tables) = {
             let mut columns_vec = vec![self.main_query_columns.get_query_columns_statement()];
             let mut join_tables_vec = Vec::<String>::new();
             if self.join_tables.len() != 0 {
                 columns_vec.push(self.join_tables.get_query_columns());
-                join_tables_vec.push(self.join_tables.get_join_statement());
+                join_tables_vec.push(self.join_tables.get_total_statement(parameter_counter));
             }
             (columns_vec.join(", "), join_tables_vec.join(" "))
         };
@@ -151,14 +150,14 @@ impl Generator for QueryGenerator<'_> {
             base_vec.push(join_tables);
         }
         if self.conditions.len() != 0 {
-            base_vec.push(self.conditions.get_condition_statement(parameter_counter));
+            base_vec.push(self.conditions.get_total_statement(parameter_counter));
             parameter_counter += self.conditions.len() as u16;
         }
         if self.groupings.len() != 0 {
             base_vec.push(self.groupings.get_grouping_statement());
         }
         if self.group_conditions.len() != 0 {
-            base_vec.push(self.group_conditions.get_grouping_condition_statement(parameter_counter));
+            base_vec.push(self.group_conditions.get_total_statement(parameter_counter));
         }
         if self.sort_rules.len() != 0 {
             base_vec.push(self.sort_rules.get_sort_rule_statement());
@@ -166,7 +165,18 @@ impl Generator for QueryGenerator<'_> {
 
         base_vec.join(" ")
     }
-    fn get_params(&self) -> Vec<String> {
-        todo!()
+    fn get_params(&self) -> Parameters {
+        let mut parameters = Parameters::new();
+
+        parameters += self.base_table.get_parameters();
+        parameters += self.join_tables.get_all_params();
+        parameters += self.conditions.get_all_params();
+        parameters += self.group_conditions.get_all_params();
+
+        parameters
+    }
+
+    fn get_all_parameters_num(&self) -> u16 {
+        self.placeholder_start_num
     }
 }
